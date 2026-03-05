@@ -205,7 +205,8 @@
       color: #6b7280;
     }
 
-    .event-form input {
+    .event-form input,
+    .event-form select {
       padding: 9px 12px;
       border: 2px solid #e5e7eb;
       border-radius: 8px;
@@ -214,9 +215,57 @@
       color: #1a1a2e;
       outline: none;
       transition: border-color .15s;
+      background: #fff;
     }
 
-    .event-form input:focus { border-color: #4f46e5; }
+    .event-form input:focus,
+    .event-form select:focus { border-color: #4f46e5; }
+
+    .emoji-wrap { position: relative; display: flex; gap: 6px; }
+    .emoji-wrap input { flex: 1; min-width: 0; }
+
+    .btn-emoji-pick {
+      padding: 9px 11px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: border-color .15s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .btn-emoji-pick:hover { border-color: #4f46e5; }
+
+    .emoji-picker {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 300;
+      background: #fff;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12);
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      width: 300px;
+    }
+    .emoji-picker.hidden { display: none; }
+
+    .ep-btn {
+      background: none;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 5px;
+      text-align: center;
+      transition: background .12s;
+      line-height: 1;
+    }
+    .ep-btn:hover { background: #f3f4f6; }
 
     .btn-primary {
       padding: 10px;
@@ -546,7 +595,7 @@
             </label>
             <label>
               Time
-              <input type="time" id="evTime" />
+              <select id="evTime"></select>
             </label>
             <label>
               Location
@@ -554,7 +603,11 @@
             </label>
             <label>
               Emoji icon
-              <input type="text" id="evEmoji" placeholder="🎉" maxlength="4" />
+              <div class="emoji-wrap">
+                <input type="text" id="evEmoji" placeholder="🎉" maxlength="4" />
+                <button type="button" class="btn-emoji-pick" onclick="togglePicker('evEmojiPicker','evEmoji')" tabindex="-1">😊</button>
+                <div id="evEmojiPicker" class="emoji-picker hidden"></div>
+              </div>
             </label>
             <button type="submit" class="btn-primary" id="addEventBtn">Add Event</button>
           </form>
@@ -621,7 +674,7 @@
         </label>
         <label>
           Time
-          <input type="time" id="editTime" />
+          <select id="editTime"></select>
         </label>
         <label>
           Location
@@ -629,7 +682,11 @@
         </label>
         <label>
           Emoji icon
-          <input type="text" id="editEmoji" maxlength="4" />
+          <div class="emoji-wrap">
+            <input type="text" id="editEmoji" maxlength="4" />
+            <button type="button" class="btn-emoji-pick" onclick="togglePicker('editEmojiPicker','editEmoji')" tabindex="-1">😊</button>
+            <div id="editEmojiPicker" class="emoji-picker hidden"></div>
+          </div>
         </label>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
@@ -1007,6 +1064,72 @@
         loadRegistrations();
       }
     });
+
+    // ── Emoji picker ──────────────────────────────────────────
+    const EMOJIS = [
+      '🎉','🎂','🎈','🎊','🎁','🥳','🎀','🎆',
+      '🍕','🍔','🌮','🌯','🍣','🍜','🍦','🎂',
+      '🍺','🍻','🥂','🍾','🥤','☕','🧃','🍹',
+      '⚽','🏀','🎮','🎯','🎸','🎵','🎤','🏆',
+      '🌟','✨','❤️','🔥','🌈','🦋','🌸','🌺',
+      '🎃','🎄','🎇','🧨','🪅','🎭','🎬','📸',
+      '🏖️','🏕️','🌍','✈️','🚀','🎠','🎡','🎪'
+    ];
+
+    let activePicker = null;
+
+    function buildPickers() {
+      const html = EMOJIS.map(e =>
+        `<button type="button" class="ep-btn" onclick="pickEmoji(event,'${e}')">${e}</button>`
+      ).join('');
+      document.getElementById('evEmojiPicker').innerHTML = html;
+      document.getElementById('editEmojiPicker').innerHTML = html;
+    }
+
+    function togglePicker(pickerId, inputId) {
+      const picker = document.getElementById(pickerId);
+      const isHidden = picker.classList.contains('hidden');
+      closeAllPickers();
+      if (isHidden) {
+        picker.classList.remove('hidden');
+        picker.dataset.target = inputId;
+        activePicker = picker;
+      }
+    }
+
+    function pickEmoji(e, emoji) {
+      const picker = e.target.closest('.emoji-picker');
+      document.getElementById(picker.dataset.target).value = emoji;
+      picker.classList.add('hidden');
+      activePicker = null;
+    }
+
+    function closeAllPickers() {
+      document.querySelectorAll('.emoji-picker').forEach(p => p.classList.add('hidden'));
+      activePicker = null;
+    }
+
+    document.addEventListener('click', function(e) {
+      if (activePicker && !e.target.closest('.emoji-wrap')) closeAllPickers();
+    });
+
+    buildPickers();
+
+    // ── Time select ───────────────────────────────────────────
+    function buildTimeOptions() {
+      let html = '<option value="">-- No time --</option>';
+      for (let h = 0; h < 24; h++) {
+        for (const m of ['00', '15', '30', '45']) {
+          const val = `${String(h).padStart(2, '0')}:${m}`;
+          html += `<option value="${val}">${val}</option>`;
+        }
+      }
+      return html;
+    }
+
+    const timeOpts = buildTimeOptions();
+    document.getElementById('evTime').innerHTML = timeOpts;
+    document.getElementById('editTime').innerHTML = timeOpts;
 
     // ── Init ──────────────────────────────────────────────────
     checkAuth();
