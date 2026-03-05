@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="da">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Event Registration</title>
+  <title>Tilmeld deltagelse</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,6 +17,42 @@
       padding: 40px 16px;
       color: #1a1a2e;
     }
+
+    .top-bar {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 16px;
+    }
+
+    .lang-toggle {
+      display: flex;
+      gap: 4px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(79,70,229,.10);
+    }
+
+    .lang-btn {
+      background: none;
+      border: none;
+      border-radius: 7px;
+      padding: 5px 10px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #6b7280;
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .lang-btn .flag { font-size: 1.1rem; }
+    .lang-btn:hover { background: #f3f4f6; }
+    .lang-btn.active { background: #4f46e5; color: #fff; }
 
     header { text-align: center; margin-bottom: 36px; }
     header h1 { font-size: 2rem; font-weight: 700; color: #4f46e5; }
@@ -70,8 +106,11 @@
 
     .event-card:hover { border-color: #a5b4fc; }
     .event-card .event-name { font-weight: 600; font-size: .95rem; color: #1a1a2e; }
-    .event-card .event-meta { font-size: .8rem; color: #6b7280; }
+    .event-card .event-meta { font-size: .8rem; color: #6b7280; display: flex; align-items: center; gap: 4px; }
     .event-card .event-emoji { font-size: 1.4rem; margin-bottom: 4px; }
+    .event-card .event-details { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+    .event-card .event-detail { font-size: .78rem; color: #6b7280; display: flex; align-items: center; gap: 4px; }
+    .event-card .event-detail svg { flex-shrink: 0; opacity: .6; }
 
     .no-events {
       text-align: center;
@@ -215,36 +254,47 @@
 </head>
 <body>
 
+  <div class="top-bar">
+    <div class="lang-toggle">
+      <button class="lang-btn" id="btn-da" onclick="setLang('da')">
+        <span class="flag">🇩🇰</span> DA
+      </button>
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">
+        <span class="flag">🇬🇧</span> EN
+      </button>
+    </div>
+  </div>
+
   <header>
-    <h1>Register Attendance</h1>
-    <p>Pick an event and fill in your details</p>
+    <h1 data-i18n="title"></h1>
+    <p data-i18n="subtitle"></p>
   </header>
 
   <div class="card">
     <form id="regForm">
-      <p class="section-label">Choose an event</p>
+      <p class="section-label" data-i18n="chooseEvent"></p>
       <div id="eventsContainer">
         <div class="skeleton-grid">
           <div class="skeleton"></div>
           <div class="skeleton"></div>
         </div>
       </div>
-      <p id="eventError" class="field-error" style="margin-bottom:16px;display:none;">Please select an event.</p>
+      <p id="eventError" class="field-error" style="margin-bottom:16px;display:none;" data-i18n="errorEvent"></p>
 
       <div class="fields">
         <label>
-          Full name
-          <input type="text" id="name" placeholder="Your name" autocomplete="name" />
-          <span class="field-error" id="nameError" style="display:none;">Please enter your name.</span>
+          <span data-i18n="labelName"></span>
+          <input type="text" id="name" data-i18n-placeholder="placeholderName" autocomplete="name" />
+          <span class="field-error" id="nameError" style="display:none;" data-i18n="errorName"></span>
         </label>
         <label>
-          Phone number
-          <input type="tel" id="phone" placeholder="+47 000 00 000" autocomplete="tel" />
-          <span class="field-error" id="phoneError" style="display:none;">Please enter a valid phone number.</span>
+          <span data-i18n="labelPhone"></span>
+          <input type="tel" id="phone" placeholder="+45 00 00 00 00" autocomplete="tel" />
+          <span class="field-error" id="phoneError" style="display:none;" data-i18n="errorPhone"></span>
         </label>
       </div>
 
-      <button type="submit" id="submitBtn">Register</button>
+      <button type="submit" id="submitBtn" data-i18n="btnRegister"></button>
     </form>
 
     <div class="success-box" id="successBox">
@@ -253,9 +303,9 @@
           <polyline points="20 6 9 17 4 12"/>
         </svg>
       </div>
-      <h2>You're registered!</h2>
-      <p>See you at <span class="highlight" id="confirmedEvent"></span></p>
-      <button class="btn-secondary" onclick="resetForm()">Register another person</button>
+      <h2 data-i18n="successTitle"></h2>
+      <p><span data-i18n="successMsg"></span> <span class="highlight" id="confirmedEvent"></span></p>
+      <button class="btn-secondary" onclick="resetForm()" data-i18n="btnAnother"></button>
     </div>
   </div>
 
@@ -264,8 +314,78 @@
   </footer>
 
   <script>
+    // ── Translations ──────────────────────────────────────────
+    const t = {
+      da: {
+        title:            'Tilmeld deltagelse',
+        subtitle:         'Vælg en begivenhed og udfyld dine oplysninger',
+        chooseEvent:      'Vælg en begivenhed',
+        labelName:        'Fulde navn',
+        placeholderName:  'Dit navn',
+        labelPhone:       'Telefonnummer',
+        btnRegister:      'Tilmeld',
+        btnRegistering:   'Tilmelder...',
+        btnAnother:       'Tilmeld en anden',
+        successTitle:     'Du er tilmeldt!',
+        successMsg:       'Vi ses til',
+        errorEvent:       'Vælg venligst en begivenhed.',
+        errorName:        'Indtast venligst dit fulde navn.',
+        errorPhone:       'Indtast venligst et gyldigt telefonnummer.',
+        errorLoad:        'Kunne ikke hente begivenheder. Prøv at genindlæse siden.',
+        noEvents:         'Ingen begivenheder endnu.\nBed arrangøren om at tilføje begivenheder.',
+        errorSubmit:      'Tilmelding mislykkedes. Prøv igen.',
+      },
+      en: {
+        title:            'Register Attendance',
+        subtitle:         'Pick an event and fill in your details',
+        chooseEvent:      'Choose an event',
+        labelName:        'Full name',
+        placeholderName:  'Your name',
+        labelPhone:       'Phone number',
+        btnRegister:      'Register',
+        btnRegistering:   'Registering...',
+        btnAnother:       'Register another person',
+        successTitle:     "You're registered!",
+        successMsg:       'See you at',
+        errorEvent:       'Please select an event.',
+        errorName:        'Please enter your name.',
+        errorPhone:       'Please enter a valid phone number.',
+        errorLoad:        'Could not load events. Please refresh.',
+        noEvents:         'No events added yet.\nAsk the organiser to add events via the admin panel.',
+        errorSubmit:      'Registration failed. Please try again.',
+      }
+    };
+
+    let lang = localStorage.getItem('lang') || 'da';
     let events = [];
 
+    function setLang(l) {
+      lang = l;
+      localStorage.setItem('lang', l);
+      document.documentElement.lang = l;
+      document.title = t[l].title;
+
+      // Update active button
+      document.getElementById('btn-da').classList.toggle('active', l === 'da');
+      document.getElementById('btn-en').classList.toggle('active', l === 'en');
+
+      // Update all data-i18n elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[l][key] !== undefined) el.textContent = t[l][key];
+      });
+
+      // Update placeholders
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (t[l][key] !== undefined) el.placeholder = t[l][key];
+      });
+
+      // Re-render events so "no events" message is in correct language
+      renderEvents();
+    }
+
+    // ── Utilities ─────────────────────────────────────────────
     function escHtml(str) {
       return String(str)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -275,9 +395,17 @@
     function formatDate(dateStr) {
       if (!dateStr) return '';
       const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      return d.toLocaleDateString(lang === 'da' ? 'da-DK' : 'en-GB',
+        { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
+    function formatTime(timeStr) {
+      if (!timeStr) return '';
+      const [h, m] = timeStr.split(':');
+      return `${h}:${m}`;
+    }
+
+    // ── Events ────────────────────────────────────────────────
     async function loadEvents() {
       try {
         const res = await fetch('/api/events');
@@ -285,7 +413,7 @@
         renderEvents();
       } catch {
         document.getElementById('eventsContainer').innerHTML =
-          '<div class="no-events">Could not load events. Please refresh.</div>';
+          `<div class="no-events">${escHtml(t[lang].errorLoad)}</div>`;
       }
     }
 
@@ -293,7 +421,9 @@
       const container = document.getElementById('eventsContainer');
 
       if (events.length === 0) {
-        container.innerHTML = '<div class="no-events">No events added yet.<br>Ask the organiser to add events via the admin panel.</div>';
+        const lines = t[lang].noEvents.split('\n');
+        container.innerHTML =
+          `<div class="no-events">${lines.map(escHtml).join('<br>')}</div>`;
         return;
       }
 
@@ -303,12 +433,28 @@
       events.forEach(ev => {
         const opt = document.createElement('div');
         opt.className = 'event-option';
+        const details = [];
+        if (ev.date || ev.time) {
+          const dateStr = ev.date ? formatDate(ev.date) : '';
+          const timeStr = ev.time ? formatTime(ev.time) : '';
+          details.push(`<span class="event-detail">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            ${escHtml([dateStr, timeStr].filter(Boolean).join(' · '))}
+          </span>`);
+        }
+        if (ev.location) {
+          details.push(`<span class="event-detail">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            ${escHtml(ev.location)}
+          </span>`);
+        }
+
         opt.innerHTML = `
           <input type="radio" name="event" id="ev-${ev.id}" value="${ev.id}" />
           <label class="event-card" for="ev-${ev.id}">
             <span class="event-emoji">${escHtml(ev.emoji)}</span>
             <span class="event-name">${escHtml(ev.name)}</span>
-            <span class="event-meta">${escHtml(formatDate(ev.date))}</span>
+            ${details.length ? `<div class="event-details">${details.join('')}</div>` : ''}
           </label>`;
         grid.appendChild(opt);
       });
@@ -317,6 +463,7 @@
       container.appendChild(grid);
     }
 
+    // ── Form submission ───────────────────────────────────────
     document.getElementById('regForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       let valid = true;
@@ -342,7 +489,7 @@
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
-      btn.innerHTML = '<div class="spinner"></div> Registering...';
+      btn.innerHTML = `<div class="spinner"></div> ${escHtml(t[lang].btnRegistering)}`;
 
       try {
         const res = await fetch('/api/registrations', {
@@ -357,7 +504,7 @@
 
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || 'Registration failed.');
+          throw new Error(err.error || t[lang].errorSubmit);
         }
 
         const ev = events.find(e => e.id === selectedEvent.value);
@@ -367,7 +514,7 @@
       } catch (err) {
         alert(err.message);
         btn.disabled = false;
-        btn.innerHTML = 'Register';
+        btn.textContent = t[lang].btnRegister;
       }
     });
 
@@ -379,9 +526,11 @@
       document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
       const btn = document.getElementById('submitBtn');
       btn.disabled = false;
-      btn.innerHTML = 'Register';
+      btn.textContent = t[lang].btnRegister;
     }
 
+    // ── Init ─────────────────────────────────────────────────
+    setLang(lang);
     loadEvents();
   </script>
 </body>

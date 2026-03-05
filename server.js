@@ -1,6 +1,5 @@
 const express = require('express');
 const session = require('express-session');
-const Database = require('better-sqlite3');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -8,35 +7,26 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Credentials (change via environment variables in production) ──
+// ── Credentials (override via environment variables in production) ──
 const ADMIN_USER = process.env.ADMIN_USER || 'Admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-in-production';
 
-// ── Database setup ────────────────────────────────────────────────
+// ── JSON file store ───────────────────────────────────────────────
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
 
-const db = new Database(path.join(dataDir, 'attendance.db'));
-db.pragma('journal_mode = WAL');
+const EVENTS_FILE = path.join(dataDir, 'events.json');
+const REGS_FILE   = path.join(dataDir, 'registrations.json');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS events (
-    id        TEXT PRIMARY KEY,
-    name      TEXT NOT NULL,
-    date      TEXT,
-    emoji     TEXT NOT NULL DEFAULT '🎉',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+function readJSON(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch { return []; }
+}
 
-  CREATE TABLE IF NOT EXISTS registrations (
-    id         TEXT PRIMARY KEY,
-    event_id   TEXT NOT NULL REFERENCES events(id),
-    name       TEXT NOT NULL,
-    phone      TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`);
+function writeJSON(file, data) {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+}
 
 // ── Middleware ────────────────────────────────────────────────────
 app.use(express.json());
@@ -80,45 +70,76 @@ app.get('/api/auth/status', (req, res) => {
 
 // ── Events ────────────────────────────────────────────────────────
 app.get('/api/events', (req, res) => {
-  const events = db.prepare('SELECT * FROM events ORDER BY date ASC, created_at DESC').all();
+  const events = readJSON(EVENTS_FILE);
+  // Sort by date ascending, then by creation order
+  events.sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
   res.json(events);
 });
 
 app.post('/api/events', requireAuth, (req, res) => {
-  const { name, date, emoji } = req.body;
+  const { name, date, time, location, emoji } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Event name is required.' });
 
-  const id = crypto.randomUUID();
-  db.prepare('INSERT INTO events (id, name, date, emoji) VALUES (?, ?, ?, ?)')
-    .run(id, name.trim(), date || null, emoji?.trim() || '🎉');
+  const events = readJSON(EVENTS_FILE);
+  const event = {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    date: date || null,
+    time: time || null,
+    location: location?.trim() || null,
+    emoji: emoji?.trim() || '🎉',
+    created_at: new Date().toISOString()
+  };
+  events.push(event);
+  writeJSON(EVENTS_FILE, events);
+  res.json(event);
+});
 
-  res.json({ id, name: name.trim(), date: date || null, emoji: emoji?.trim() || '🎉' });
+app.put('/api/events/:id', requireAuth, (req, res) => {
+  const { name, date, time, location, emoji } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Event name is required.' });
+
+  const events = readJSON(EVENTS_FILE);
+  const idx = events.findIndex(e => e.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Event not found.' });
+
+  events[idx] = {
+    ...events[idx],
+    name: name.trim(),
+    date: date || null,
+    time: time || null,
+    location: location?.trim() || null,
+    emoji: emoji?.trim() || '🎉'
+  };
+  writeJSON(EVENTS_FILE, events);
+  res.json(events[idx]);
 });
 
 app.delete('/api/events/:id', requireAuth, (req, res) => {
-  const del = db.transaction((id) => {
-    db.prepare('DELETE FROM registrations WHERE event_id = ?').run(id);
-    db.prepare('DELETE FROM events WHERE id = ?').run(id);
-  });
-  del(req.params.id);
+  const { id } = req.params;
+  writeJSON(EVENTS_FILE, readJSON(EVENTS_FILE).filter(e => e.id !== id));
+  writeJSON(REGS_FILE,   readJSON(REGS_FILE).filter(r => r.event_id !== id));
   res.json({ success: true });
 });
 
 // ── Registrations ─────────────────────────────────────────────────
 app.get('/api/registrations', requireAuth, (req, res) => {
   const { eventId } = req.query;
-  const sql = `
-    SELECT r.id, r.name, r.phone, r.created_at,
-           e.id as event_id, e.name as event_name, e.emoji
-    FROM registrations r
-    LEFT JOIN events e ON r.event_id = e.id
-    ${eventId ? 'WHERE r.event_id = ?' : ''}
-    ORDER BY r.created_at DESC
-  `;
-  const regs = eventId
-    ? db.prepare(sql).all(eventId)
-    : db.prepare(sql).all();
-  res.json(regs);
+  const events = readJSON(EVENTS_FILE);
+  const evMap  = Object.fromEntries(events.map(e => [e.id, e]));
+
+  let regs = readJSON(REGS_FILE);
+  if (eventId) regs = regs.filter(r => r.event_id === eventId);
+
+  // Sort newest first and attach event info
+  regs.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const result = regs.map(r => ({
+    ...r,
+    event_name: evMap[r.event_id]?.name || '—',
+    emoji:      evMap[r.event_id]?.emoji || '🎉'
+  }));
+
+  res.json(result);
 });
 
 app.post('/api/registrations', (req, res) => {
@@ -126,23 +147,32 @@ app.post('/api/registrations', (req, res) => {
   if (!eventId || !name?.trim() || !phone?.trim()) {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
-  const event = db.prepare('SELECT id FROM events WHERE id = ?').get(eventId);
-  if (!event) return res.status(404).json({ error: 'Event not found.' });
 
-  const id = crypto.randomUUID();
-  db.prepare('INSERT INTO registrations (id, event_id, name, phone) VALUES (?, ?, ?, ?)')
-    .run(id, eventId, name.trim(), phone.trim());
+  const events = readJSON(EVENTS_FILE);
+  if (!events.find(e => e.id === eventId)) {
+    return res.status(404).json({ error: 'Event not found.' });
+  }
 
-  res.json({ success: true, id });
+  const regs = readJSON(REGS_FILE);
+  const reg = {
+    id: crypto.randomUUID(),
+    event_id: eventId,
+    name: name.trim(),
+    phone: phone.trim(),
+    created_at: new Date().toISOString()
+  };
+  regs.push(reg);
+  writeJSON(REGS_FILE, regs);
+  res.json({ success: true, id: reg.id });
 });
 
 app.delete('/api/registrations/:id', requireAuth, (req, res) => {
-  db.prepare('DELETE FROM registrations WHERE id = ?').run(req.params.id);
+  writeJSON(REGS_FILE, readJSON(REGS_FILE).filter(r => r.id !== req.params.id));
   res.json({ success: true });
 });
 
 app.delete('/api/events/:id/registrations', requireAuth, (req, res) => {
-  db.prepare('DELETE FROM registrations WHERE event_id = ?').run(req.params.id);
+  writeJSON(REGS_FILE, readJSON(REGS_FILE).filter(r => r.event_id !== req.params.id));
   res.json({ success: true });
 });
 
