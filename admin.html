@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4ff;
+      min-height: 100vh;
+      color: #1a1a2e;
+      padding: 40px 16px;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #4f46e5;
+    }
+
+    header .back-link {
+      font-size: .875rem;
+      color: #6b7280;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    header .back-link:hover { color: #4f46e5; }
+
+    /* Cards layout */
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 640px) {
+      .grid-two { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(79,70,229,.10);
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #374151;
+    }
+
+    /* Event form */
+    .event-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .event-form label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: .8rem;
+      font-weight: 500;
+      color: #6b7280;
+    }
+
+    .event-form input,
+    .event-form select {
+      padding: 9px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .event-form input:focus,
+    .event-form select:focus {
+      border-color: #4f46e5;
+    }
+
+    .btn-primary {
+      padding: 10px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      margin-top: 4px;
+    }
+
+    .btn-primary:hover { background: #4338ca; }
+
+    /* Events list */
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: #f9fafb;
+      border-radius: 10px;
+      gap: 10px;
+    }
+
+    .event-item .ev-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .event-item .ev-emoji { font-size: 1.3rem; flex-shrink: 0; }
+
+    .event-item .ev-name {
+      font-weight: 600;
+      font-size: .9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-item .ev-date {
+      font-size: .78rem;
+      color: #9ca3af;
+    }
+
+    .badge {
+      background: #eef2ff;
+      color: #4f46e5;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: .75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      transition: color .15s, background .15s;
+      flex-shrink: 0;
+    }
+
+    .btn-icon:hover { color: #ef4444; background: #fee2e2; }
+
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: #9ca3af;
+      font-size: .85rem;
+    }
+
+    /* Registrations table area */
+    .table-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(79,70,229,.10);
+      padding: 24px;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .table-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-row select {
+      padding: 7px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: .85rem;
+      font-family: inherit;
+      color: #374151;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-row select:focus { border-color: #4f46e5; }
+
+    .count-badge {
+      font-size: .8rem;
+      color: #6b7280;
+    }
+
+    .btn-danger-outline {
+      padding: 7px 14px;
+      border: 2px solid #ef4444;
+      color: #ef4444;
+      background: none;
+      border-radius: 8px;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+
+    .btn-danger-outline:hover { background: #ef4444; color: #fff; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #9ca3af;
+      border-bottom: 2px solid #f3f4f6;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: #fafaf9; }
+
+    .td-name { font-weight: 600; color: #1a1a2e; }
+
+    .td-event {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .td-time { color: #9ca3af; font-size: .8rem; }
+
+    .no-regs {
+      text-align: center;
+      padding: 40px;
+      color: #9ca3af;
+    }
+
+    .overflow-x {
+      overflow-x: auto;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: .875rem;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <h1>Admin Panel</h1>
+    <a href="index.html" class="back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to registration
+    </a>
+  </header>
+
+  <!-- Top two-col grid -->
+  <div class="grid-two">
+
+    <!-- Add event form -->
+    <div class="card">
+      <h2>Add Event</h2>
+      <form class="event-form" id="eventForm">
+        <label>
+          Event name *
+          <input type="text" id="evName" placeholder="e.g. Mia's Birthday" required />
+        </label>
+        <label>
+          Date
+          <input type="date" id="evDate" />
+        </label>
+        <label>
+          Emoji icon
+          <input type="text" id="evEmoji" placeholder="🎉" maxlength="4" />
+        </label>
+        <button type="submit" class="btn-primary">Add Event</button>
+      </form>
+    </div>
+
+    <!-- Events list -->
+    <div class="card">
+      <h2>Events</h2>
+      <div class="events-list" id="eventsList"></div>
+    </div>
+
+  </div>
+
+  <!-- Registrations table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h2>Registrations <span class="count-badge" id="countBadge"></span></h2>
+      <div class="filter-row">
+        <select id="filterEvent" onchange="renderTable()">
+          <option value="">All events</option>
+        </select>
+        <button class="btn-danger-outline" onclick="clearFiltered()">Clear filtered</button>
+      </div>
+    </div>
+    <div class="overflow-x">
+      <table id="regTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Event</th>
+            <th>Registered</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="regBody"></tbody>
+      </table>
+      <div class="no-regs" id="noRegs" style="display:none;">No registrations yet.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Storage helpers ─────────────────────────────────────────
+  function getEvents() { return JSON.parse(localStorage.getItem('events') || '[]'); }
+  function saveEvents(evs) { localStorage.setItem('events', JSON.stringify(evs)); }
+  function getRegs() { return JSON.parse(localStorage.getItem('registrations') || '[]'); }
+  function saveRegs(regs) { localStorage.setItem('registrations', JSON.stringify(regs)); }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Toast ───────────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── Render events list ──────────────────────────────────────
+  function renderEventsList() {
+    const events = getEvents();
+    const regs = getRegs();
+    const list = document.getElementById('eventsList');
+    const filterSel = document.getElementById('filterEvent');
+
+    // Rebuild filter options
+    const curFilter = filterSel.value;
+    filterSel.innerHTML = '<option value="">All events</option>';
+    events.forEach(ev => {
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = ev.name;
+      filterSel.appendChild(opt);
+    });
+    filterSel.value = curFilter;
+
+    if (events.length === 0) {
+      list.innerHTML = '<div class="empty-state">No events yet. Add one!</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    events.forEach(ev => {
+      const count = regs.filter(r => r.eventId === ev.id).length;
+      const item = document.createElement('div');
+      item.className = 'event-item';
+      item.innerHTML = `
+        <div class="ev-info">
+          <span class="ev-emoji">${escHtml(ev.emoji || '🎉')}</span>
+          <div>
+            <div class="ev-name">${escHtml(ev.name)}</div>
+            ${ev.date ? `<div class="ev-date">${formatDate(ev.date)}</div>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge">${count}</span>
+          <button class="btn-icon" onclick="deleteEvent('${ev.id}')" title="Delete event">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>`;
+      list.appendChild(item);
+    });
+  }
+
+  // ── Add event ───────────────────────────────────────────────
+  document.getElementById('eventForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('evName').value.trim();
+    if (!name) return;
+
+    const events = getEvents();
+    events.push({
+      id: crypto.randomUUID(),
+      name,
+      date: document.getElementById('evDate').value,
+      emoji: document.getElementById('evEmoji').value.trim() || '🎉'
+    });
+    saveEvents(events);
+
+    this.reset();
+    renderEventsList();
+    renderTable();
+    showToast('Event added!');
+  });
+
+  // ── Delete event ─────────────────────────────────────────────
+  function deleteEvent(id) {
+    if (!confirm('Delete this event? Registrations for it will also be removed.')) return;
+    saveEvents(getEvents().filter(e => e.id !== id));
+    saveRegs(getRegs().filter(r => r.eventId !== id));
+    renderEventsList();
+    renderTable();
+    showToast('Event deleted.');
+  }
+
+  // ── Render table ─────────────────────────────────────────────
+  function renderTable() {
+    const filter = document.getElementById('filterEvent').value;
+    let regs = getRegs();
+    if (filter) regs = regs.filter(r => r.eventId === filter);
+
+    const events = getEvents();
+    const evMap = Object.fromEntries(events.map(e => [e.id, e]));
+
+    const tbody = document.getElementById('regBody');
+    const noRegs = document.getElementById('noRegs');
+    const count = document.getElementById('countBadge');
+
+    count.textContent = `(${regs.length})`;
+
+    if (regs.length === 0) {
+      tbody.innerHTML = '';
+      document.getElementById('regTable').style.display = 'none';
+      noRegs.style.display = 'block';
+      return;
+    }
+
+    document.getElementById('regTable').style.display = 'table';
+    noRegs.style.display = 'none';
+
+    // Sort newest first
+    regs = [...regs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    tbody.innerHTML = regs.map(r => {
+      const ev = evMap[r.eventId];
+      return `<tr>
+        <td class="td-name">${escHtml(r.name)}</td>
+        <td><a href="tel:${escHtml(r.phone)}" style="color:#4f46e5;text-decoration:none">${escHtml(r.phone)}</a></td>
+        <td><span class="td-event">${ev ? escHtml(ev.emoji || '🎉') : ''} ${escHtml(r.eventName)}</span></td>
+        <td class="td-time">${formatDateTime(r.timestamp)}</td>
+        <td>
+          <button class="btn-icon" onclick="deleteReg('${r.id}')" title="Remove registration">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Delete single registration ────────────────────────────────
+  function deleteReg(id) {
+    if (!confirm('Remove this registration?')) return;
+    saveRegs(getRegs().filter(r => r.id !== id));
+    renderEventsList();
+    renderTable();
+    showToast('Registration removed.');
+  }
+
+  // ── Clear filtered registrations ──────────────────────────────
+  function clearFiltered() {
+    const filter = document.getElementById('filterEvent').value;
+    const label = filter
+      ? document.getElementById('filterEvent').options[document.getElementById('filterEvent').selectedIndex].text
+      : 'all events';
+    if (!confirm(`Remove all registrations for "${label}"?`)) return;
+
+    let regs = getRegs();
+    if (filter) {
+      regs = regs.filter(r => r.eventId !== filter);
+    } else {
+      regs = [];
+    }
+    saveRegs(regs);
+    renderEventsList();
+    renderTable();
+    showToast('Registrations cleared.');
+  }
+
+  // ── Formatters ────────────────────────────────────────────────
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function formatDateTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+      + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────
+  renderEventsList();
+  renderTable();
+</script>
+</body>
+</html>

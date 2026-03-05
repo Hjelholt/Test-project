@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Registration</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4ff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px;
+      color: #1a1a2e;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #4f46e5;
+    }
+
+    header p {
+      margin-top: 6px;
+      color: #6b7280;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(79,70,229,.10);
+      padding: 32px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .section-label {
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    /* Event cards */
+    .events-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .event-option {
+      position: relative;
+    }
+
+    .event-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .event-card {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      user-select: none;
+    }
+
+    .event-option input:checked + .event-card {
+      border-color: #4f46e5;
+      background: #eef2ff;
+      box-shadow: 0 0 0 3px rgba(79,70,229,.15);
+    }
+
+    .event-card:hover {
+      border-color: #a5b4fc;
+    }
+
+    .event-card .event-name {
+      font-weight: 600;
+      font-size: .95rem;
+      color: #1a1a2e;
+    }
+
+    .event-card .event-meta {
+      font-size: .8rem;
+      color: #6b7280;
+    }
+
+    .event-card .event-emoji {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+    }
+
+    /* No events state */
+    .no-events {
+      text-align: center;
+      padding: 24px;
+      color: #9ca3af;
+      font-size: .9rem;
+      border: 2px dashed #e5e7eb;
+      border-radius: 12px;
+      margin-bottom: 28px;
+    }
+
+    /* Form fields */
+    .fields {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: .875rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    input[type="text"],
+    input[type="tel"] {
+      padding: 11px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: .95rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="tel"]:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+
+    input.error {
+      border-color: #ef4444;
+    }
+
+    .field-error {
+      font-size: .78rem;
+      color: #ef4444;
+      margin-top: -4px;
+    }
+
+    /* Submit button */
+    button[type="submit"] {
+      width: 100%;
+      padding: 13px;
+      background: #4f46e5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+
+    button[type="submit"]:hover {
+      background: #4338ca;
+    }
+
+    button[type="submit"]:active {
+      transform: scale(.98);
+    }
+
+    button[type="submit"]:disabled {
+      background: #a5b4fc;
+      cursor: not-allowed;
+    }
+
+    /* Success state */
+    .success-box {
+      display: none;
+      text-align: center;
+      padding: 40px 24px;
+    }
+
+    .success-box .checkmark {
+      width: 64px;
+      height: 64px;
+      background: #4f46e5;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .success-box .checkmark svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .success-box h2 {
+      font-size: 1.4rem;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+
+    .success-box p {
+      color: #6b7280;
+      font-size: .95rem;
+      margin-bottom: 24px;
+    }
+
+    .success-box .highlight {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4f46e5;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 6px;
+      margin: 0 4px;
+    }
+
+    .btn-secondary {
+      display: inline-block;
+      padding: 10px 24px;
+      border: 2px solid #4f46e5;
+      color: #4f46e5;
+      border-radius: 10px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      transition: background .15s, color .15s;
+      text-decoration: none;
+    }
+
+    .btn-secondary:hover {
+      background: #4f46e5;
+      color: #fff;
+    }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: .8rem;
+      color: #9ca3af;
+    }
+
+    footer a {
+      color: #6b7280;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: #4f46e5;
+    }
+
+    @media (max-width: 420px) {
+      .events-grid { grid-template-columns: 1fr; }
+      .card { padding: 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Register Attendance</h1>
+    <p>Pick an event and fill in your details</p>
+  </header>
+
+  <div class="card">
+    <!-- Registration form -->
+    <form id="regForm">
+      <p class="section-label">Choose an event</p>
+      <div id="eventsContainer"></div>
+      <p id="eventError" class="field-error" style="margin-bottom:16px;display:none;">Please select an event.</p>
+
+      <div class="fields">
+        <label>
+          Full name
+          <input type="text" id="name" placeholder="Your name" autocomplete="name" />
+          <span class="field-error" id="nameError" style="display:none;">Please enter your name.</span>
+        </label>
+        <label>
+          Phone number
+          <input type="tel" id="phone" placeholder="+47 000 00 000" autocomplete="tel" />
+          <span class="field-error" id="phoneError" style="display:none;">Please enter a valid phone number.</span>
+        </label>
+      </div>
+
+      <button type="submit" id="submitBtn">Register</button>
+    </form>
+
+    <!-- Success message -->
+    <div class="success-box" id="successBox">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <h2>You're registered!</h2>
+      <p>See you at <span class="highlight" id="confirmedEvent"></span></p>
+      <button class="btn-secondary" onclick="resetForm()">Register another person</button>
+    </div>
+  </div>
+
+  <footer>
+    <a href="admin.html">Admin panel</a>
+  </footer>
+
+  <script>
+    // ── Storage helpers ─────────────────────────────────────────
+    function getEvents() {
+      return JSON.parse(localStorage.getItem('events') || '[]');
+    }
+
+    function getRegistrations() {
+      return JSON.parse(localStorage.getItem('registrations') || '[]');
+    }
+
+    function saveRegistration(reg) {
+      const regs = getRegistrations();
+      regs.push(reg);
+      localStorage.setItem('registrations', JSON.stringify(regs));
+    }
+
+    // ── Render event cards ───────────────────────────────────────
+    function renderEvents() {
+      const events = getEvents();
+      const container = document.getElementById('eventsContainer');
+
+      if (events.length === 0) {
+        container.innerHTML = `<div class="no-events">No events added yet.<br>Ask the organiser to add events via the admin panel.</div>`;
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'events-grid';
+
+      events.forEach(ev => {
+        const opt = document.createElement('div');
+        opt.className = 'event-option';
+        opt.innerHTML = `
+          <input type="radio" name="event" id="ev-${ev.id}" value="${ev.id}" />
+          <label class="event-card" for="ev-${ev.id}">
+            <span class="event-emoji">${ev.emoji || '🎉'}</span>
+            <span class="event-name">${escHtml(ev.name)}</span>
+            <span class="event-meta">${escHtml(ev.date || '')}</span>
+          </label>`;
+        grid.appendChild(opt);
+      });
+
+      container.innerHTML = '';
+      container.appendChild(grid);
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Form submission ──────────────────────────────────────────
+    document.getElementById('regForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      let valid = true;
+
+      // Validate event
+      const selectedEvent = document.querySelector('input[name="event"]:checked');
+      const eventError = document.getElementById('eventError');
+      if (!selectedEvent) {
+        eventError.style.display = 'block';
+        valid = false;
+      } else {
+        eventError.style.display = 'none';
+      }
+
+      // Validate name
+      const nameInput = document.getElementById('name');
+      const nameError = document.getElementById('nameError');
+      if (!nameInput.value.trim()) {
+        nameInput.classList.add('error');
+        nameError.style.display = 'block';
+        valid = false;
+      } else {
+        nameInput.classList.remove('error');
+        nameError.style.display = 'none';
+      }
+
+      // Validate phone
+      const phoneInput = document.getElementById('phone');
+      const phoneError = document.getElementById('phoneError');
+      const phoneVal = phoneInput.value.trim().replace(/\s/g, '');
+      if (!phoneVal || !/^\+?[\d\s\-().]{5,20}$/.test(phoneInput.value.trim())) {
+        phoneInput.classList.add('error');
+        phoneError.style.display = 'block';
+        valid = false;
+      } else {
+        phoneInput.classList.remove('error');
+        phoneError.style.display = 'none';
+      }
+
+      if (!valid) return;
+
+      // Save
+      const events = getEvents();
+      const ev = events.find(e => e.id === selectedEvent.value);
+      saveRegistration({
+        id: crypto.randomUUID(),
+        eventId: ev.id,
+        eventName: ev.name,
+        name: nameInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        timestamp: new Date().toISOString()
+      });
+
+      // Show success
+      document.getElementById('confirmedEvent').textContent = ev.name;
+      document.getElementById('regForm').style.display = 'none';
+      document.getElementById('successBox').style.display = 'block';
+    });
+
+    function resetForm() {
+      document.getElementById('regForm').reset();
+      document.getElementById('regForm').style.display = 'block';
+      document.getElementById('successBox').style.display = 'none';
+      // Clear errors
+      document.querySelectorAll('.field-error').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    renderEvents();
+  </script>
+</body>
+</html>
