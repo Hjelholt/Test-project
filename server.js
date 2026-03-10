@@ -165,6 +165,11 @@ app.delete('/api/events/:id/registrations', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// ── HTML pages ──────────────────────────────────────────────────
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+
 // ── Start ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
