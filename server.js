@@ -3,6 +3,7 @@ const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,21 +13,33 @@ const ADMIN_USER = process.env.ADMIN_USER || 'Admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-this-secret-in-production';
 
-// ── JSON file store ───────────────────────────────────────────────
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+// ── SQLite database (set DATA_DIR to a persistent volume path) ───
+const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
-const EVENTS_FILE = path.join(dataDir, 'events.json');
-const REGS_FILE   = path.join(dataDir, 'registrations.json');
+const db = new Database(path.join(dataDir, 'app.db'));
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
 
-function readJSON(file) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch { return []; }
-}
-
-function writeJSON(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
-}
+db.exec(`
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    date TEXT,
+    time TEXT,
+    location TEXT,
+    emoji TEXT DEFAULT '🎉',
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS registrations (
+    id TEXT PRIMARY KEY,
+    event_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+  );
+`);
 
 // ── Middleware ────────────────────────────────────────────────────
 app.use(express.json());
@@ -68,19 +81,29 @@ app.get('/api/auth/status', (req, res) => {
   res.json({ authenticated: !!req.session.authenticated });
 });
 
+// ── Prepared statements ──────────────────────────────────────────
+const stmts = {
+  getEvents:        db.prepare("SELECT * FROM events ORDER BY COALESCE(date, '9999') ASC"),
+  getEvent:         db.prepare('SELECT * FROM events WHERE id = ?'),
+  insertEvent:      db.prepare('INSERT INTO events (id, name, date, time, location, emoji, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+  updateEvent:      db.prepare('UPDATE events SET name = ?, date = ?, time = ?, location = ?, emoji = ? WHERE id = ?'),
+  deleteEvent:      db.prepare('DELETE FROM events WHERE id = ?'),
+  getRegs:          db.prepare(`SELECT r.*, e.name AS event_name, e.emoji FROM registrations r LEFT JOIN events e ON r.event_id = e.id ORDER BY r.created_at DESC`),
+  getRegsByEvent:   db.prepare(`SELECT r.*, e.name AS event_name, e.emoji FROM registrations r LEFT JOIN events e ON r.event_id = e.id WHERE r.event_id = ? ORDER BY r.created_at DESC`),
+  insertReg:        db.prepare('INSERT INTO registrations (id, event_id, name, phone, created_at) VALUES (?, ?, ?, ?, ?)'),
+  deleteReg:        db.prepare('DELETE FROM registrations WHERE id = ?'),
+  deleteRegsByEvent: db.prepare('DELETE FROM registrations WHERE event_id = ?'),
+};
+
 // ── Events ────────────────────────────────────────────────────────
 app.get('/api/events', (req, res) => {
-  const events = readJSON(EVENTS_FILE);
-  // Sort by date ascending, then by creation order
-  events.sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
-  res.json(events);
+  res.json(stmts.getEvents.all());
 });
 
 app.post('/api/events', requireAuth, (req, res) => {
   const { name, date, time, location, emoji } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Event name is required.' });
 
-  const events = readJSON(EVENTS_FILE);
   const event = {
     id: crypto.randomUUID(),
     name: name.trim(),
@@ -90,8 +113,7 @@ app.post('/api/events', requireAuth, (req, res) => {
     emoji: emoji?.trim() || '🎉',
     created_at: new Date().toISOString()
   };
-  events.push(event);
-  writeJSON(EVENTS_FILE, events);
+  stmts.insertEvent.run(event.id, event.name, event.date, event.time, event.location, event.emoji, event.created_at);
   res.json(event);
 });
 
@@ -99,47 +121,23 @@ app.put('/api/events/:id', requireAuth, (req, res) => {
   const { name, date, time, location, emoji } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Event name is required.' });
 
-  const events = readJSON(EVENTS_FILE);
-  const idx = events.findIndex(e => e.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Event not found.' });
+  const existing = stmts.getEvent.get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Event not found.' });
 
-  events[idx] = {
-    ...events[idx],
-    name: name.trim(),
-    date: date || null,
-    time: time || null,
-    location: location?.trim() || null,
-    emoji: emoji?.trim() || '🎉'
-  };
-  writeJSON(EVENTS_FILE, events);
-  res.json(events[idx]);
+  stmts.updateEvent.run(name.trim(), date || null, time || null, location?.trim() || null, emoji?.trim() || '🎉', req.params.id);
+  res.json({ ...existing, name: name.trim(), date: date || null, time: time || null, location: location?.trim() || null, emoji: emoji?.trim() || '🎉' });
 });
 
 app.delete('/api/events/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  writeJSON(EVENTS_FILE, readJSON(EVENTS_FILE).filter(e => e.id !== id));
-  writeJSON(REGS_FILE,   readJSON(REGS_FILE).filter(r => r.event_id !== id));
+  stmts.deleteEvent.run(req.params.id); // CASCADE deletes registrations
   res.json({ success: true });
 });
 
 // ── Registrations ─────────────────────────────────────────────────
 app.get('/api/registrations', requireAuth, (req, res) => {
   const { eventId } = req.query;
-  const events = readJSON(EVENTS_FILE);
-  const evMap  = Object.fromEntries(events.map(e => [e.id, e]));
-
-  let regs = readJSON(REGS_FILE);
-  if (eventId) regs = regs.filter(r => r.event_id === eventId);
-
-  // Sort newest first and attach event info
-  regs.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const result = regs.map(r => ({
-    ...r,
-    event_name: evMap[r.event_id]?.name || '—',
-    emoji:      evMap[r.event_id]?.emoji || '🎉'
-  }));
-
-  res.json(result);
+  const rows = eventId ? stmts.getRegsByEvent.all(eventId) : stmts.getRegs.all();
+  res.json(rows.map(r => ({ ...r, event_name: r.event_name || '—', emoji: r.emoji || '🎉' })));
 });
 
 app.post('/api/registrations', (req, res) => {
@@ -148,33 +146,29 @@ app.post('/api/registrations', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields.' });
   }
 
-  const events = readJSON(EVENTS_FILE);
-  if (!events.find(e => e.id === eventId)) {
+  if (!stmts.getEvent.get(eventId)) {
     return res.status(404).json({ error: 'Event not found.' });
   }
 
-  const regs = readJSON(REGS_FILE);
-  const reg = {
-    id: crypto.randomUUID(),
-    event_id: eventId,
-    name: name.trim(),
-    phone: phone.trim(),
-    created_at: new Date().toISOString()
-  };
-  regs.push(reg);
-  writeJSON(REGS_FILE, regs);
-  res.json({ success: true, id: reg.id });
+  const id = crypto.randomUUID();
+  stmts.insertReg.run(id, eventId, name.trim(), phone.trim(), new Date().toISOString());
+  res.json({ success: true, id });
 });
 
 app.delete('/api/registrations/:id', requireAuth, (req, res) => {
-  writeJSON(REGS_FILE, readJSON(REGS_FILE).filter(r => r.id !== req.params.id));
+  stmts.deleteReg.run(req.params.id);
   res.json({ success: true });
 });
 
 app.delete('/api/events/:id/registrations', requireAuth, (req, res) => {
-  writeJSON(REGS_FILE, readJSON(REGS_FILE).filter(r => r.event_id !== req.params.id));
+  stmts.deleteRegsByEvent.run(req.params.id);
   res.json({ success: true });
 });
+
+// ── HTML pages ──────────────────────────────────────────────────
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 
 // ── Start ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {

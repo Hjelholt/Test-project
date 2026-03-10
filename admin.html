@@ -330,11 +330,28 @@
 <div class="page">
   <header>
     <h1>Admin Panel</h1>
-    <a href="index.html" class="back-link">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      Back to registration
-    </a>
+    <div style="display:flex;align-items:center;gap:16px">
+      <button id="logoutBtn" class="btn-danger-outline" onclick="doLogout()" style="display:none;">Log out</button>
+      <a href="index.html" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to registration
+      </a>
+    </div>
   </header>
+
+  <!-- Login section -->
+  <div id="loginSection" class="card" style="max-width:400px;margin:0 auto 28px;">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:16px;color:#374151;">Log in</h2>
+    <form class="event-form" onsubmit="doLogin(event)">
+      <label>Username <input type="text" id="loginUser" required /></label>
+      <label>Password <input type="password" id="loginPass" required /></label>
+      <p id="loginError" style="color:#ef4444;font-size:.85rem;display:none;"></p>
+      <button type="submit" class="btn-primary">Log in</button>
+    </form>
+  </div>
+
+  <!-- Admin content (hidden until authenticated) -->
+  <div id="adminContent" style="display:none;">
 
   <!-- Top two-col grid -->
   <div class="grid-two">
@@ -394,19 +411,78 @@
       <div class="no-regs" id="noRegs" style="display:none;">No registrations yet.</div>
     </div>
   </div>
+
+  </div><!-- /adminContent -->
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-  // ── Storage helpers ─────────────────────────────────────────
-  function getEvents() { return JSON.parse(localStorage.getItem('events') || '[]'); }
-  function saveEvents(evs) { localStorage.setItem('events', JSON.stringify(evs)); }
-  function getRegs() { return JSON.parse(localStorage.getItem('registrations') || '[]'); }
-  function saveRegs(regs) { localStorage.setItem('registrations', JSON.stringify(regs)); }
+  // ── API helpers ─────────────────────────────────────────────
+  async function api(method, url, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+
+  let cachedEvents = [];
+  let cachedRegs = [];
+
+  async function fetchEvents() {
+    cachedEvents = await api('GET', '/api/events');
+    return cachedEvents;
+  }
+
+  async function fetchRegs(eventId) {
+    const url = eventId ? `/api/registrations?eventId=${eventId}` : '/api/registrations';
+    cachedRegs = await api('GET', url);
+    return cachedRegs;
+  }
 
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Auth ────────────────────────────────────────────────────
+  let authenticated = false;
+
+  async function checkAuth() {
+    try {
+      const data = await api('GET', '/api/auth/status');
+      authenticated = data.authenticated;
+    } catch { authenticated = false; }
+    toggleUI();
+  }
+
+  async function doLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('loginUser').value;
+    const password = document.getElementById('loginPass').value;
+    try {
+      await api('POST', '/api/auth/login', { username, password });
+      authenticated = true;
+      document.getElementById('loginError').style.display = 'none';
+      toggleUI();
+      await refresh();
+    } catch (err) {
+      document.getElementById('loginError').textContent = err.message;
+      document.getElementById('loginError').style.display = 'block';
+    }
+  }
+
+  async function doLogout() {
+    await api('POST', '/api/auth/logout');
+    authenticated = false;
+    toggleUI();
+  }
+
+  function toggleUI() {
+    document.getElementById('loginSection').style.display = authenticated ? 'none' : 'block';
+    document.getElementById('adminContent').style.display = authenticated ? 'block' : 'none';
+    document.getElementById('logoutBtn').style.display = authenticated ? 'inline-block' : 'none';
   }
 
   // ── Toast ───────────────────────────────────────────────────
@@ -418,9 +494,8 @@
   }
 
   // ── Render events list ──────────────────────────────────────
-  function renderEventsList() {
-    const events = getEvents();
-    const regs = getRegs();
+  async function renderEventsList() {
+    const events = cachedEvents;
     const list = document.getElementById('eventsList');
     const filterSel = document.getElementById('filterEvent');
 
@@ -442,7 +517,7 @@
 
     list.innerHTML = '';
     events.forEach(ev => {
-      const count = regs.filter(r => r.eventId === ev.id).length;
+      const count = cachedRegs.filter(r => r.event_id === ev.id).length;
       const item = document.createElement('div');
       item.className = 'event-item';
       item.innerHTML = `
@@ -466,44 +541,42 @@
   }
 
   // ── Add event ───────────────────────────────────────────────
-  document.getElementById('eventForm').addEventListener('submit', function(e) {
+  document.getElementById('eventForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const name = document.getElementById('evName').value.trim();
     if (!name) return;
 
-    const events = getEvents();
-    events.push({
-      id: crypto.randomUUID(),
-      name,
-      date: document.getElementById('evDate').value,
-      emoji: document.getElementById('evEmoji').value.trim() || '🎉'
-    });
-    saveEvents(events);
-
-    this.reset();
-    renderEventsList();
-    renderTable();
-    showToast('Event added!');
+    try {
+      await api('POST', '/api/events', {
+        name,
+        date: document.getElementById('evDate').value || null,
+        emoji: document.getElementById('evEmoji').value.trim() || '🎉'
+      });
+      this.reset();
+      await refresh();
+      showToast('Event added!');
+    } catch (err) {
+      showToast('Error: ' + err.message);
+    }
   });
 
   // ── Delete event ─────────────────────────────────────────────
-  function deleteEvent(id) {
+  async function deleteEvent(id) {
     if (!confirm('Delete this event? Registrations for it will also be removed.')) return;
-    saveEvents(getEvents().filter(e => e.id !== id));
-    saveRegs(getRegs().filter(r => r.eventId !== id));
-    renderEventsList();
-    renderTable();
-    showToast('Event deleted.');
+    try {
+      await api('DELETE', `/api/events/${id}`);
+      await refresh();
+      showToast('Event deleted.');
+    } catch (err) {
+      showToast('Error: ' + err.message);
+    }
   }
 
   // ── Render table ─────────────────────────────────────────────
   function renderTable() {
     const filter = document.getElementById('filterEvent').value;
-    let regs = getRegs();
-    if (filter) regs = regs.filter(r => r.eventId === filter);
-
-    const events = getEvents();
-    const evMap = Object.fromEntries(events.map(e => [e.id, e]));
+    let regs = cachedRegs;
+    if (filter) regs = regs.filter(r => r.event_id === filter);
 
     const tbody = document.getElementById('regBody');
     const noRegs = document.getElementById('noRegs');
@@ -522,15 +595,14 @@
     noRegs.style.display = 'none';
 
     // Sort newest first
-    regs = [...regs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    regs = [...regs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     tbody.innerHTML = regs.map(r => {
-      const ev = evMap[r.eventId];
       return `<tr>
         <td class="td-name">${escHtml(r.name)}</td>
         <td><a href="tel:${escHtml(r.phone)}" style="color:#4f46e5;text-decoration:none">${escHtml(r.phone)}</a></td>
-        <td><span class="td-event">${ev ? escHtml(ev.emoji || '🎉') : ''} ${escHtml(r.eventName)}</span></td>
-        <td class="td-time">${formatDateTime(r.timestamp)}</td>
+        <td><span class="td-event">${escHtml(r.emoji || '🎉')} ${escHtml(r.event_name || '—')}</span></td>
+        <td class="td-time">${formatDateTime(r.created_at)}</td>
         <td>
           <button class="btn-icon" onclick="deleteReg('${r.id}')" title="Remove registration">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -543,32 +615,39 @@
   }
 
   // ── Delete single registration ────────────────────────────────
-  function deleteReg(id) {
+  async function deleteReg(id) {
     if (!confirm('Remove this registration?')) return;
-    saveRegs(getRegs().filter(r => r.id !== id));
-    renderEventsList();
-    renderTable();
-    showToast('Registration removed.');
+    try {
+      await api('DELETE', `/api/registrations/${id}`);
+      await refresh();
+      showToast('Registration removed.');
+    } catch (err) {
+      showToast('Error: ' + err.message);
+    }
   }
 
   // ── Clear filtered registrations ──────────────────────────────
-  function clearFiltered() {
+  async function clearFiltered() {
     const filter = document.getElementById('filterEvent').value;
     const label = filter
       ? document.getElementById('filterEvent').options[document.getElementById('filterEvent').selectedIndex].text
       : 'all events';
     if (!confirm(`Remove all registrations for "${label}"?`)) return;
 
-    let regs = getRegs();
-    if (filter) {
-      regs = regs.filter(r => r.eventId !== filter);
-    } else {
-      regs = [];
+    try {
+      if (filter) {
+        await api('DELETE', `/api/events/${filter}/registrations`);
+      } else {
+        // Delete registrations for each event
+        for (const ev of cachedEvents) {
+          await api('DELETE', `/api/events/${ev.id}/registrations`);
+        }
+      }
+      await refresh();
+      showToast('Registrations cleared.');
+    } catch (err) {
+      showToast('Error: ' + err.message);
     }
-    saveRegs(regs);
-    renderEventsList();
-    renderTable();
-    showToast('Registrations cleared.');
   }
 
   // ── Formatters ────────────────────────────────────────────────
@@ -579,14 +658,24 @@
   }
 
   function formatDateTime(iso) {
+    if (!iso) return '';
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
       + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   }
 
+  // ── Refresh all data ──────────────────────────────────────────
+  async function refresh() {
+    await fetchEvents();
+    await fetchRegs();
+    renderEventsList();
+    renderTable();
+  }
+
   // ── Init ──────────────────────────────────────────────────────
-  renderEventsList();
-  renderTable();
+  checkAuth().then(() => {
+    if (authenticated) refresh();
+  });
 </script>
 </body>
 </html>
