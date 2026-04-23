@@ -42,7 +42,7 @@ db.exec(`
 `);
 
 // ── Middleware ────────────────────────────────────────────────────
-app.set('trust proxy', 1); // trust Railway / render reverse proxy for secure cookies
+app.set('trust proxy', 1); // trust Railway / Render reverse proxy for secure cookies
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
