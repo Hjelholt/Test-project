@@ -327,27 +327,24 @@
   </footer>
 
   <script>
-    // ── Storage helpers ─────────────────────────────────────────
-    function getEvents() {
-      return JSON.parse(localStorage.getItem('events') || '[]');
-    }
+    let cachedEvents = [];
 
-    function getRegistrations() {
-      return JSON.parse(localStorage.getItem('registrations') || '[]');
-    }
-
-    function saveRegistration(reg) {
-      const regs = getRegistrations();
-      regs.push(reg);
-      localStorage.setItem('registrations', JSON.stringify(regs));
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     // ── Render event cards ───────────────────────────────────────
-    function renderEvents() {
-      const events = getEvents();
+    async function renderEvents() {
       const container = document.getElementById('eventsContainer');
+      try {
+        const res = await fetch('/api/events');
+        cachedEvents = await res.json();
+      } catch {
+        container.innerHTML = `<div class="no-events">Could not load events. Please try again later.</div>`;
+        return;
+      }
 
-      if (events.length === 0) {
+      if (cachedEvents.length === 0) {
         container.innerHTML = `<div class="no-events">No events added yet.<br>Ask the organiser to add events via the admin panel.</div>`;
         return;
       }
@@ -355,7 +352,7 @@
       const grid = document.createElement('div');
       grid.className = 'events-grid';
 
-      events.forEach(ev => {
+      cachedEvents.forEach(ev => {
         const opt = document.createElement('div');
         opt.className = 'event-option';
         opt.innerHTML = `
@@ -372,12 +369,8 @@
       container.appendChild(grid);
     }
 
-    function escHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
     // ── Form submission ──────────────────────────────────────────
-    document.getElementById('regForm').addEventListener('submit', function(e) {
+    document.getElementById('regForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
       let valid = true;
@@ -419,22 +412,33 @@
 
       if (!valid) return;
 
-      // Save
-      const events = getEvents();
-      const ev = events.find(e => e.id === selectedEvent.value);
-      saveRegistration({
-        id: crypto.randomUUID(),
-        eventId: ev.id,
-        eventName: ev.name,
-        name: nameInput.value.trim(),
-        phone: phoneInput.value.trim(),
-        timestamp: new Date().toISOString()
-      });
+      // Submit to API
+      const ev = cachedEvents.find(e => e.id === selectedEvent.value);
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
 
-      // Show success
-      document.getElementById('confirmedEvent').textContent = ev.name;
-      document.getElementById('regForm').style.display = 'none';
-      document.getElementById('successBox').style.display = 'block';
+      try {
+        const res = await fetch('/api/registrations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: ev.id,
+            name: nameInput.value.trim(),
+            phone: phoneInput.value.trim()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        // Show success
+        document.getElementById('confirmedEvent').textContent = ev.name;
+        document.getElementById('regForm').style.display = 'none';
+        document.getElementById('successBox').style.display = 'block';
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+      }
     });
 
     function resetForm() {
