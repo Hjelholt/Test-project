@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel</title>
+  <title>My Events</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,419 +14,253 @@
       color: #1a1a2e;
     }
 
-    /* ── Login overlay ──────────────────────────────────────── */
-    #loginOverlay {
-      position: fixed;
-      inset: 0;
+    /* ── Auth overlay ───────────────────────────────────────── */
+    #authOverlay {
+      position: fixed; inset: 0;
       background: #f0f4ff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; z-index: 100;
     }
 
-    .login-card {
+    .auth-card {
       background: #fff;
       border-radius: 20px;
       box-shadow: 0 8px 40px rgba(79,70,229,.15);
       padding: 40px 36px;
-      width: 100%;
-      max-width: 380px;
-      text-align: center;
+      width: 100%; max-width: 400px;
     }
 
-    .login-logo {
-      width: 56px; height: 56px;
-      background: #4f46e5;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .auth-logo {
+      width: 52px; height: 52px;
+      background: #4f46e5; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
       margin: 0 auto 20px;
     }
+    .auth-logo svg { width: 26px; height: 26px; }
 
-    .login-logo svg { width: 28px; height: 28px; }
-
-    .login-card h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #1a1a2e;
-      margin-bottom: 4px;
+    .auth-tabs {
+      display: flex; gap: 4px;
+      background: #f3f4f6; border-radius: 10px;
+      padding: 4px; margin-bottom: 24px;
     }
-
-    .login-card p {
-      font-size: .875rem;
-      color: #6b7280;
-      margin-bottom: 28px;
+    .auth-tab {
+      flex: 1; padding: 8px;
+      background: none; border: none;
+      border-radius: 7px; font-size: .875rem;
+      font-weight: 600; cursor: pointer;
+      color: #6b7280; transition: background .15s, color .15s;
     }
+    .auth-tab.active { background: #fff; color: #4f46e5; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 
-    .back-to-registration {
-      display: inline-block;
-      margin-top: 20px;
-      font-size: .875rem;
-      color: #4f46e5;
-      text-decoration: none;
-      font-weight: 500;
+    .auth-form { display: none; flex-direction: column; gap: 14px; }
+    .auth-form.visible { display: flex; }
+
+    .auth-form label {
+      display: flex; flex-direction: column; gap: 5px;
+      font-size: .8rem; font-weight: 600;
+      color: #6b7280; text-transform: uppercase; letter-spacing: .05em;
     }
-
-    .back-to-registration:hover {
-      text-decoration: underline;
-    }
-
-    .login-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      text-align: left;
-      margin-bottom: 20px;
-    }
-
-    .login-fields label {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      font-size: .8rem;
-      font-weight: 600;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-    }
-
-    .login-fields input {
+    .auth-form input {
       padding: 11px 14px;
-      border: 2px solid #e5e7eb;
-      border-radius: 10px;
-      font-size: .95rem;
-      font-family: inherit;
-      color: #1a1a2e;
-      outline: none;
-      transition: border-color .15s;
+      border: 2px solid #e5e7eb; border-radius: 10px;
+      font-size: .95rem; font-family: inherit;
+      color: #1a1a2e; outline: none; transition: border-color .15s;
+    }
+    .auth-form input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+
+    .auth-error {
+      font-size: .825rem; color: #ef4444;
+      background: #fff5f5; border: 1px solid #fecaca;
+      border-radius: 8px; padding: 10px 14px; display: none;
     }
 
-    .login-fields input:focus {
-      border-color: #4f46e5;
-      box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    .btn-auth {
+      width: 100%; padding: 12px;
+      background: #4f46e5; color: #fff;
+      border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .btn-auth:hover { background: #4338ca; }
+    .btn-auth:disabled { background: #a5b4fc; cursor: not-allowed; }
 
-    .login-fields input.error { border-color: #ef4444; }
-
-    .login-error {
-      font-size: .825rem;
-      color: #ef4444;
-      background: #fff5f5;
-      border: 1px solid #fecaca;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      display: none;
-      text-align: left;
-    }
-
-    .btn-login {
-      width: 100%;
-      padding: 12px;
-      background: #4f46e5;
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: .95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .btn-login:hover { background: #4338ca; }
-    .btn-login:disabled { background: #a5b4fc; cursor: not-allowed; }
-
-    /* ── Main page ──────────────────────────────────────────── */
-    #adminPage { display: none; padding: 40px 16px; }
-
+    /* ── Dashboard page ─────────────────────────────────────── */
+    #dashPage { display: none; padding: 40px 16px; }
     .page { max-width: 900px; margin: 0 auto; }
 
     header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 32px;
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap;
+      gap: 12px; margin-bottom: 32px;
     }
-
     .header-left { display: flex; align-items: center; gap: 12px; }
-
     header h1 { font-size: 1.7rem; font-weight: 700; color: #4f46e5; }
-
-    .back-link {
-      font-size: .875rem;
-      color: #6b7280;
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+    .username-badge {
+      font-size: .825rem; color: #6b7280;
+      background: #eef2ff; padding: 4px 10px;
+      border-radius: 20px; font-weight: 500;
     }
-
+    .back-link {
+      font-size: .875rem; color: #6b7280;
+      text-decoration: none;
+      display: flex; align-items: center; gap: 4px;
+    }
     .back-link:hover { color: #4f46e5; }
-
     .btn-logout {
       padding: 8px 16px;
-      border: 2px solid #e5e7eb;
-      background: #fff;
-      color: #6b7280;
-      border-radius: 8px;
-      font-size: .825rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: border-color .15s, color .15s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      border: 2px solid #e5e7eb; background: #fff;
+      color: #6b7280; border-radius: 8px;
+      font-size: .825rem; font-weight: 600;
+      cursor: pointer; transition: border-color .15s, color .15s;
+      display: flex; align-items: center; gap: 6px;
     }
-
     .btn-logout:hover { border-color: #ef4444; color: #ef4444; }
 
     .grid-two {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 28px;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 24px; margin-bottom: 28px;
     }
-
     @media (max-width: 640px) { .grid-two { grid-template-columns: 1fr; } }
 
     .card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(79,70,229,.10);
-      padding: 24px;
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(79,70,229,.10); padding: 24px;
     }
-
     .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #374151; }
 
     .event-form { display: flex; flex-direction: column; gap: 12px; }
-
     .event-form label {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      font-size: .8rem;
-      font-weight: 500;
-      color: #6b7280;
+      display: flex; flex-direction: column; gap: 5px;
+      font-size: .8rem; font-weight: 500; color: #6b7280;
     }
-
     .event-form input,
     .event-form select {
       padding: 9px 12px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-family: inherit;
-      color: #1a1a2e;
-      outline: none;
-      transition: border-color .15s;
-      background: #fff;
+      border: 2px solid #e5e7eb; border-radius: 8px;
+      font-size: .9rem; font-family: inherit;
+      color: #1a1a2e; outline: none;
+      transition: border-color .15s; background: #fff;
     }
-
     .event-form input:focus,
     .event-form select:focus { border-color: #4f46e5; }
 
     .emoji-wrap { position: relative; display: flex; gap: 6px; }
     .emoji-wrap input { flex: 1; min-width: 0; }
-
     .btn-emoji-pick {
-      padding: 9px 11px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      background: #fff;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: border-color .15s;
-      flex-shrink: 0;
-      line-height: 1;
+      padding: 9px 11px; border: 2px solid #e5e7eb;
+      border-radius: 8px; background: #fff;
+      font-size: 1rem; cursor: pointer;
+      transition: border-color .15s; flex-shrink: 0; line-height: 1;
     }
     .btn-emoji-pick:hover { border-color: #4f46e5; }
-
     .emoji-picker {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      z-index: 300;
-      background: #fff;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.12);
-      padding: 10px;
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-      width: 300px;
+      position: absolute; top: calc(100% + 6px); left: 0;
+      z-index: 300; background: #fff;
+      border: 2px solid #e5e7eb; border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 10px;
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 4px; width: 300px;
     }
     .emoji-picker.hidden { display: none; }
-
     .ep-btn {
-      background: none;
-      border: none;
-      border-radius: 6px;
-      font-size: 1.25rem;
-      cursor: pointer;
-      padding: 5px;
-      text-align: center;
-      transition: background .12s;
-      line-height: 1;
+      background: none; border: none; border-radius: 6px;
+      font-size: 1.25rem; cursor: pointer; padding: 5px;
+      text-align: center; transition: background .12s; line-height: 1;
     }
     .ep-btn:hover { background: #f3f4f6; }
 
     .btn-primary {
-      padding: 10px;
-      background: #4f46e5;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s;
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+      padding: 10px; background: #4f46e5;
+      color: #fff; border: none; border-radius: 8px;
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+      transition: background .15s; margin-top: 4px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
     }
-
     .btn-primary:hover { background: #4338ca; }
     .btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
 
     .events-list { display: flex; flex-direction: column; gap: 10px; }
-
     .event-item {
-      display: flex;
-      align-items: center;
+      display: flex; align-items: center;
       justify-content: space-between;
-      padding: 12px 14px;
-      background: #f9fafb;
-      border-radius: 10px;
-      gap: 10px;
-      cursor: pointer;
+      padding: 12px 14px; background: #f9fafb;
+      border-radius: 10px; gap: 10px; cursor: pointer;
       border: 2px solid transparent;
       transition: border-color .15s, background .15s;
     }
-
     .event-item:hover { background: #f3f4f6; }
-
-    .event-item.active {
-      background: #eef2ff;
-      border-color: #4f46e5;
-    }
-
+    .event-item.active { background: #eef2ff; border-color: #4f46e5; }
     .event-item .ev-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .event-item .ev-emoji { font-size: 1.3rem; flex-shrink: 0; }
     .event-item .ev-name { font-weight: 600; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .event-item .ev-date { font-size: .78rem; color: #9ca3af; }
-
     .badge {
-      background: #eef2ff;
-      color: #4f46e5;
-      border-radius: 20px;
-      padding: 2px 10px;
-      font-size: .75rem;
-      font-weight: 600;
-      flex-shrink: 0;
+      background: #eef2ff; color: #4f46e5;
+      border-radius: 20px; padding: 2px 10px;
+      font-size: .75rem; font-weight: 600; flex-shrink: 0;
     }
+    .vis-badge {
+      font-size: .7rem; padding: 2px 7px;
+      border-radius: 20px; font-weight: 600; flex-shrink: 0;
+    }
+    .vis-public  { background: #dcfce7; color: #15803d; }
+    .vis-private { background: #fef3c7; color: #92400e; }
 
     .btn-icon {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #9ca3af;
-      padding: 4px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      transition: color .15s, background .15s;
-      flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      color: #9ca3af; padding: 4px; border-radius: 6px;
+      display: flex; align-items: center;
+      transition: color .15s, background .15s; flex-shrink: 0;
     }
-
     .btn-icon:hover { color: #ef4444; background: #fee2e2; }
+    .btn-icon-edit {
+      background: none; border: none; cursor: pointer;
+      color: #9ca3af; padding: 4px; border-radius: 6px;
+      display: flex; align-items: center;
+      transition: color .15s, background .15s; flex-shrink: 0;
+    }
+    .btn-icon-edit:hover { color: #4f46e5; background: #eef2ff; }
 
     .empty-state { text-align: center; padding: 20px; color: #9ca3af; font-size: .85rem; }
 
-    .table-card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(79,70,229,.10); padding: 24px; }
-
+    .table-card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(79,70,229,.10); padding: 24px;
+    }
     .table-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 16px;
+      display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap;
+      gap: 12px; margin-bottom: 16px;
     }
-
     .table-header h2 { font-size: 1rem; font-weight: 600; color: #374151; }
-
     .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-
-    .filter-row select {
-      padding: 7px 12px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: .85rem;
-      font-family: inherit;
-      color: #374151;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .filter-row select:focus { border-color: #4f46e5; }
     .count-badge { font-size: .8rem; color: #6b7280; }
 
-    .btn-danger-outline {
-      padding: 7px 14px;
-      border: 2px solid #ef4444;
-      color: #ef4444;
-      background: none;
-      border-radius: 8px;
-      font-size: .82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .15s, color .15s;
-    }
-
-    .btn-danger-outline:hover { background: #ef4444; color: #fff; }
-
     .btn-show-all {
-      padding: 7px 14px;
-      border: 2px solid #4f46e5;
-      color: #4f46e5;
-      background: none;
-      border-radius: 8px;
-      font-size: .82rem;
-      font-weight: 600;
-      cursor: pointer;
+      padding: 7px 14px; border: 2px solid #4f46e5;
+      color: #4f46e5; background: none; border-radius: 8px;
+      font-size: .82rem; font-weight: 600; cursor: pointer;
       transition: background .15s, color .15s;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+      display: flex; align-items: center; gap: 5px;
     }
-
     .btn-show-all:hover { background: #4f46e5; color: #fff; }
 
-    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
-
-    th {
-      text-align: left;
-      padding: 10px 14px;
-      font-size: .75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      color: #9ca3af;
-      border-bottom: 2px solid #f3f4f6;
+    .btn-danger-outline {
+      padding: 7px 14px; border: 2px solid #ef4444;
+      color: #ef4444; background: none; border-radius: 8px;
+      font-size: .82rem; font-weight: 600; cursor: pointer;
+      transition: background .15s, color .15s;
     }
+    .btn-danger-outline:hover { background: #ef4444; color: #fff; }
 
+    table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    th {
+      text-align: left; padding: 10px 14px;
+      font-size: .75rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: #9ca3af; border-bottom: 2px solid #f3f4f6;
+    }
     td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #fafaf9; }
@@ -437,152 +271,97 @@
 
     .spinner {
       width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
-      display: inline-block;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin .6s linear infinite; display: inline-block;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .toast {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      background: #1a1a2e;
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-size: .875rem;
-      font-weight: 500;
-      opacity: 0;
-      transform: translateY(10px);
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1a1a2e; color: #fff;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: .875rem; font-weight: 500;
+      opacity: 0; transform: translateY(10px);
       transition: opacity .25s, transform .25s;
-      pointer-events: none;
-      z-index: 999;
+      pointer-events: none; z-index: 999;
     }
-
     .toast.show { opacity: 1; transform: translateY(0); }
 
     /* ── Edit modal ─────────────────────────────────────────── */
     #editModal {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: rgba(0,0,0,.45);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 200;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .2s;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; z-index: 200;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
     }
-
-    #editModal.open {
-      opacity: 1;
-      pointer-events: all;
-    }
-
+    #editModal.open { opacity: 1; pointer-events: all; }
     .modal-card {
-      background: #fff;
-      border-radius: 16px;
+      background: #fff; border-radius: 16px;
       box-shadow: 0 8px 40px rgba(0,0,0,.18);
-      padding: 28px;
-      width: 100%;
-      max-width: 420px;
-      transform: translateY(12px);
-      transition: transform .2s;
+      padding: 28px; width: 100%; max-width: 420px;
+      transform: translateY(12px); transition: transform .2s;
     }
-
     #editModal.open .modal-card { transform: translateY(0); }
-
     .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 20px;
     }
-
     .modal-header h3 { font-size: 1.1rem; font-weight: 700; color: #1a1a2e; }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
     .modal-actions .btn-primary { flex: 1; margin-top: 0; }
-
     .btn-cancel {
-      flex: 1;
-      padding: 10px;
-      border: 2px solid #e5e7eb;
-      background: none;
-      color: #6b7280;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 600;
-      cursor: pointer;
+      flex: 1; padding: 10px;
+      border: 2px solid #e5e7eb; background: none;
+      color: #6b7280; border-radius: 8px;
+      font-size: .9rem; font-weight: 600; cursor: pointer;
       transition: border-color .15s, color .15s;
     }
-
     .btn-cancel:hover { border-color: #9ca3af; color: #374151; }
-
-    .btn-icon-edit {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #9ca3af;
-      padding: 4px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      transition: color .15s, background .15s;
-      flex-shrink: 0;
-    }
-
-    .btn-icon-edit:hover { color: #4f46e5; background: #eef2ff; }
   </style>
 </head>
 <body>
 
-  <!-- ── Login overlay ─────────────────────────────────────── -->
-  <div id="loginOverlay">
-    <div class="login-card">
-      <div class="login-logo">
+  <!-- ── Auth overlay ───────────────────────────────────────── -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-logo">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
         </svg>
       </div>
-      <h1>Admin Login</h1>
-      <p>Sign in to manage events and view registrations</p>
 
-      <form id="loginForm">
-        <div class="login-fields">
-          <label>
-            Username
-            <input type="text" id="loginUser" autocomplete="username" placeholder="Username" />
-          </label>
-          <label>
-            Password
-            <input type="password" id="loginPass" autocomplete="current-password" placeholder="Password" />
-          </label>
-        </div>
-        <div class="login-error" id="loginError"></div>
-        <button type="submit" class="btn-login" id="loginBtn">Sign in</button>
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign in</button>
+        <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create account</button>
+      </div>
+
+      <!-- Login form -->
+      <form id="loginForm" class="auth-form visible">
+        <label>Email <input type="email" id="loginEmail" autocomplete="email" placeholder="you@example.com" /></label>
+        <label>Password <input type="password" id="loginPass" autocomplete="current-password" placeholder="Password" /></label>
+        <div class="auth-error" id="loginError"></div>
+        <button type="submit" class="btn-auth" id="loginBtn">Sign in</button>
       </form>
-      <a href="/index.html" class="back-to-registration">← Back to registration page</a>
+
+      <!-- Register form -->
+      <form id="registerForm" class="auth-form">
+        <label>Username <input type="text" id="regUsername" autocomplete="username" placeholder="your_name" /></label>
+        <label>Email <input type="email" id="regEmail" autocomplete="email" placeholder="you@example.com" /></label>
+        <label>Password <input type="password" id="regPass" autocomplete="new-password" placeholder="Min. 6 characters" /></label>
+        <div class="auth-error" id="registerError"></div>
+        <button type="submit" class="btn-auth" id="registerBtn">Create account</button>
+      </form>
     </div>
   </div>
 
-  <!-- ── Admin page ─────────────────────────────────────────── -->
-  <div id="adminPage">
+  <!-- ── Dashboard ──────────────────────────────────────────── -->
+  <div id="dashPage">
     <div class="page">
       <header>
         <div class="header-left">
-          <h1>Admin Panel</h1>
+          <h1>My Events</h1>
+          <span class="username-badge" id="usernameBadge"></span>
           <a href="/index.html" class="back-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Registration page
@@ -595,26 +374,14 @@
       </header>
 
       <div class="grid-two">
-        <!-- Add event form -->
+        <!-- Add event -->
         <div class="card">
           <h2>Add Event</h2>
           <form class="event-form" id="eventForm">
-            <label>
-              Event name *
-              <input type="text" id="evName" placeholder="e.g. Mia's Birthday" required />
-            </label>
-            <label>
-              Date
-              <input type="date" id="evDate" />
-            </label>
-            <label>
-              Time
-              <select id="evTime"></select>
-            </label>
-            <label>
-              Location
-              <input type="text" id="evLocation" placeholder="e.g. Frederiksberg Have" />
-            </label>
+            <label>Event name * <input type="text" id="evName" placeholder="e.g. Mia's Birthday" required /></label>
+            <label>Date <input type="date" id="evDate" /></label>
+            <label>Time <select id="evTime"></select></label>
+            <label>Location <input type="text" id="evLocation" placeholder="e.g. Frederiksberg Have" /></label>
             <label>
               Emoji icon
               <div class="emoji-wrap">
@@ -634,19 +401,19 @@
           </form>
         </div>
 
-        <!-- Events list -->
+        <!-- My events list -->
         <div class="card">
-          <h2>Events</h2>
+          <h2>My Events</h2>
           <div class="events-list" id="eventsList">
             <div class="empty-state">Loading...</div>
           </div>
         </div>
       </div>
 
-      <!-- Registrations table -->
+      <!-- Registrations -->
       <div class="table-card">
         <div class="table-header">
-          <h2 id="tableTitle">Registrations <span class="count-badge" id="countBadge"></span></h2>
+          <h2 id="tableTitle">Registrations</h2>
           <div class="filter-row">
             <button class="btn-show-all" id="showAllBtn" onclick="clearEventFilter()" style="display:none">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -674,7 +441,7 @@
     </div>
   </div>
 
-  <!-- ── Edit modal ──────────────────────────────────────────── -->
+  <!-- ── Edit modal ─────────────────────────────────────────── -->
   <div id="editModal" onclick="closeEditModal(event)">
     <div class="modal-card">
       <div class="modal-header">
@@ -685,22 +452,10 @@
       </div>
       <form class="event-form" id="editForm">
         <input type="hidden" id="editId" />
-        <label>
-          Event name *
-          <input type="text" id="editName" required />
-        </label>
-        <label>
-          Date
-          <input type="date" id="editDate" />
-        </label>
-        <label>
-          Time
-          <select id="editTime"></select>
-        </label>
-        <label>
-          Location
-          <input type="text" id="editLocation" placeholder="e.g. Frederiksberg Have" />
-        </label>
+        <label>Event name * <input type="text" id="editName" required /></label>
+        <label>Date <input type="date" id="editDate" /></label>
+        <label>Time <select id="editTime"></select></label>
+        <label>Location <input type="text" id="editLocation" /></label>
         <label>
           Emoji icon
           <div class="emoji-wrap">
@@ -727,42 +482,44 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    function escHtml(str) {
-      return String(str)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-
     function showToast(msg) {
       const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
+      t.textContent = msg; t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2500);
     }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      const d = new Date(dateStr + 'T12:00:00');
-      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    function formatDate(d) {
+      if (!d) return '';
+      return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
     }
-
     function formatDateTime(iso) {
       const d = new Date(iso);
       return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
         + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     }
 
-    // ── Auth ──────────────────────────────────────────────────
-    async function checkAuth() {
-      const res = await fetch('/api/auth/status');
-      const { authenticated } = await res.json();
-      if (authenticated) showAdminPage();
+    // ── Auth tab switching ────────────────────────────────────
+    function switchTab(tab) {
+      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+      document.getElementById('loginForm').classList.toggle('visible', tab === 'login');
+      document.getElementById('registerForm').classList.toggle('visible', tab === 'register');
     }
 
-    async function showAdminPage() {
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('adminPage').style.display = 'block';
-      await loadEvents();
+    // ── Auth ──────────────────────────────────────────────────
+    async function checkAuth() {
+      const res = await fetch('/api/users/status');
+      const data = await res.json();
+      if (data.authenticated) showDashboard(data.username);
+    }
+
+    function showDashboard(username) {
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('dashPage').style.display = 'block';
+      document.getElementById('usernameBadge').textContent = username;
+      loadEvents();
       loadRegistrations();
     }
 
@@ -771,42 +528,54 @@
       const btn = document.getElementById('loginBtn');
       const errEl = document.getElementById('loginError');
       errEl.style.display = 'none';
-
       btn.disabled = true;
-      btn.innerHTML = '<div class="spinner"></div> Signing in...';
-
+      btn.innerHTML = '<div class="spinner"></div>';
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPass').value })
+        });
+        const data = await res.json();
+        if (res.ok) { showDashboard(data.username); }
+        else { errEl.textContent = data.error || 'Login failed.'; errEl.style.display = 'block'; }
+      } catch { errEl.textContent = 'Could not connect.'; errEl.style.display = 'block'; }
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('registerBtn');
+      const errEl = document.getElementById('registerError');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div>';
+      try {
+        const res = await fetch('/api/users/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: document.getElementById('loginUser').value,
-            password: document.getElementById('loginPass').value
+            username: document.getElementById('regUsername').value,
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPass').value
           })
         });
-
-        if (res.ok) {
-          showAdminPage();
-        } else {
-          const { error } = await res.json();
-          errEl.textContent = error || 'Login failed.';
-          errEl.style.display = 'block';
-          document.getElementById('loginPass').value = '';
-        }
-      } catch {
-        errEl.textContent = 'Could not connect to server.';
-        errEl.style.display = 'block';
-      }
-
+        const data = await res.json();
+        if (res.ok) { showDashboard(data.username); }
+        else { errEl.textContent = data.error || 'Registration failed.'; errEl.style.display = 'block'; }
+      } catch { errEl.textContent = 'Could not connect.'; errEl.style.display = 'block'; }
       btn.disabled = false;
-      btn.innerHTML = 'Sign in';
+      btn.textContent = 'Create account';
     });
 
     async function logout() {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      document.getElementById('adminPage').style.display = 'none';
-      document.getElementById('loginOverlay').style.display = 'flex';
+      await fetch('/api/users/logout', { method: 'POST' });
+      document.getElementById('dashPage').style.display = 'none';
+      document.getElementById('authOverlay').style.display = 'flex';
       document.getElementById('loginForm').reset();
+      document.getElementById('registerForm').reset();
+      switchTab('login');
     }
 
     // ── Events ────────────────────────────────────────────────
@@ -814,24 +583,22 @@
     let selectedEventId = null;
 
     async function loadEvents() {
-      const res = await fetch('/api/events/all');
+      const res = await fetch('/api/events/mine');
+      if (res.status === 401) return;
       events = await res.json();
       renderEventsList();
     }
 
     function renderEventsList() {
       const list = document.getElementById('eventsList');
-
       if (events.length === 0) {
         list.innerHTML = '<div class="empty-state">No events yet. Add one!</div>';
         return;
       }
-
       list.innerHTML = '';
       events.forEach(ev => {
         const item = document.createElement('div');
         item.className = 'event-item' + (selectedEventId === ev.id ? ' active' : '');
-        item.id = `ev-item-${ev.id}`;
         item.innerHTML = `
           <div class="ev-info">
             <span class="ev-emoji">${escHtml(ev.emoji)}</span>
@@ -840,22 +607,17 @@
               ${ev.date ? `<div class="ev-date">${formatDate(ev.date)}</div>` : ''}
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;font-weight:600;background:${ev.is_public !== 0 ? '#dcfce7' : '#fef3c7'};color:${ev.is_public !== 0 ? '#15803d' : '#92400e'}">${ev.is_public !== 0 ? '🌐 Public' : '🔒 Private'}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="vis-badge ${ev.is_public !== 0 ? 'vis-public' : 'vis-private'}">${ev.is_public !== 0 ? '🌐 Public' : '🔒 Private'}</span>
             <span class="badge" id="badge-${ev.id}">0</span>
             <button class="btn-icon-edit" onclick="event.stopPropagation(); copyLink('${ev.access_token}')" title="Copy shareable link">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
-            <button class="btn-icon-edit" onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit event">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
+            <button class="btn-icon-edit" onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
-            <button class="btn-icon" onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete event">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-              </svg>
+            <button class="btn-icon" onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </div>`;
         item.addEventListener('click', () => selectEvent(ev.id));
@@ -864,7 +626,7 @@
     }
 
     function selectEvent(id) {
-      selectedEventId = selectedEventId === id ? null : id; // toggle off if clicking same event
+      selectedEventId = selectedEventId === id ? null : id;
       renderEventsList();
       loadRegistrations();
     }
@@ -877,24 +639,26 @@
 
     function updateBadges(regs) {
       events.forEach(ev => {
-        const badge = document.getElementById(`badge-${ev.id}`);
-        if (badge) badge.textContent = '0';
+        const b = document.getElementById(`badge-${ev.id}`);
+        if (b) b.textContent = '0';
       });
       regs.forEach(r => {
-        const badge = document.getElementById(`badge-${r.event_id}`);
-        if (badge) badge.textContent = String(Number(badge.textContent) + 1);
+        const b = document.getElementById(`badge-${r.event_id}`);
+        if (b) b.textContent = String(Number(b.textContent) + 1);
       });
+    }
+
+    function copyLink(token) {
+      const url = `${location.origin}/event?code=${token}`;
+      navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
     }
 
     document.getElementById('eventForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       const name = document.getElementById('evName').value.trim();
       if (!name) return;
-
       const btn = document.getElementById('addEventBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<div class="spinner"></div>';
-
+      btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
       try {
         const res = await fetch('/api/events', {
           method: 'POST',
@@ -908,81 +672,67 @@
             is_public: parseInt(document.getElementById('evPublic').value)
           })
         });
-
+        if (res.status === 401) { await logout(); return; }
         if (!res.ok) throw new Error();
         this.reset();
+        document.getElementById('evTime').value = '';
         await loadEvents();
         await loadRegistrations();
         showToast('Event added!');
-      } catch {
-        showToast('Failed to add event.');
-      }
-
+      } catch { showToast('Failed to add event.'); }
       btn.disabled = false;
-      btn.innerHTML = 'Add Event';
+      btn.textContent = 'Add Event';
     });
 
     async function deleteEvent(id) {
       if (!confirm('Delete this event? All registrations for it will also be removed.')) return;
-      try {
-        await fetch(`/api/events/${id}`, { method: 'DELETE' });
-        await loadEvents();
-        await loadRegistrations();
-        showToast('Event deleted.');
-      } catch {
-        showToast('Failed to delete event.');
-      }
+      await fetch(`/api/events/${id}`, { method: 'DELETE' });
+      if (selectedEventId === id) selectedEventId = null;
+      await loadEvents();
+      await loadRegistrations();
+      showToast('Event deleted.');
     }
 
     // ── Registrations ─────────────────────────────────────────
     async function loadRegistrations() {
       const url = selectedEventId
-        ? `/api/registrations?eventId=${selectedEventId}`
-        : '/api/registrations';
-
+        ? `/api/registrations/mine?eventId=${selectedEventId}`
+        : '/api/registrations/mine';
       try {
         const res = await fetch(url);
         if (res.status === 401) return;
         const regs = await res.json();
         renderTable(regs);
-
-        // Always fetch all regs for badge counts
-        const allRes = await fetch('/api/registrations');
+        const allRes = await fetch('/api/registrations/mine');
         const allRegs = await allRes.json();
         updateBadges(allRegs);
-      } catch {
-        // silently fail if not yet authenticated
-      }
+      } catch {}
     }
 
     function renderTable(regs) {
       const tbody = document.getElementById('regBody');
-      const noRegs = document.getElementById('noRegs');
-      const count = document.getElementById('countBadge');
       const titleEl = document.getElementById('tableTitle');
       const showAllBtn = document.getElementById('showAllBtn');
 
-      // Update title and show-all button
       if (selectedEventId) {
         const ev = events.find(e => e.id === selectedEventId);
-        titleEl.innerHTML = `${escHtml(ev?.emoji || '🎉')} ${escHtml(ev?.name || 'Event')} <span class="count-badge" id="countBadge">(${regs.length})</span>`;
+        titleEl.innerHTML = `${escHtml(ev?.emoji || '🎉')} ${escHtml(ev?.name || 'Event')} <span class="count-badge">(${regs.length})</span>`;
         showAllBtn.style.display = 'flex';
       } else {
-        titleEl.innerHTML = `Registrations <span class="count-badge" id="countBadge">(${regs.length})</span>`;
+        titleEl.innerHTML = `Registrations <span class="count-badge">(${regs.length})</span>`;
         showAllBtn.style.display = 'none';
       }
 
       if (regs.length === 0) {
         tbody.innerHTML = '';
         document.getElementById('regTable').style.display = 'none';
-        noRegs.style.display = 'block';
+        document.getElementById('noRegs').style.display = 'block';
         return;
       }
 
       document.getElementById('regTable').style.display = 'table';
-      noRegs.style.display = 'none';
+      document.getElementById('noRegs').style.display = 'none';
 
-      // Hide the Event column when filtered to a single event
       const showEventCol = !selectedEventId;
       const headers = document.querySelectorAll('#regTable th');
       if (headers[2]) headers[2].style.display = showEventCol ? '' : 'none';
@@ -995,9 +745,7 @@
           <td class="td-time">${formatDateTime(r.created_at)}</td>
           <td>
             <button class="btn-icon" onclick="deleteReg('${r.id}')" title="Remove">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-              </svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </button>
           </td>
         </tr>`).join('');
@@ -1013,9 +761,8 @@
     async function clearFiltered() {
       const label = selectedEventId
         ? events.find(e => e.id === selectedEventId)?.name || 'this event'
-        : 'all events';
+        : 'all your events';
       if (!confirm(`Remove all registrations for "${label}"?`)) return;
-
       if (selectedEventId) {
         await fetch(`/api/events/${selectedEventId}/registrations`, { method: 'DELETE' });
       } else {
@@ -1023,7 +770,6 @@
           await fetch(`/api/events/${ev.id}/registrations`, { method: 'DELETE' });
         }
       }
-
       await loadRegistrations();
       showToast('Registrations cleared.');
     }
@@ -1032,7 +778,6 @@
     function openEditModal(id) {
       const ev = events.find(e => e.id === id);
       if (!ev) return;
-
       document.getElementById('editId').value = ev.id;
       document.getElementById('editName').value = ev.name;
       document.getElementById('editDate').value = ev.date || '';
@@ -1040,12 +785,10 @@
       document.getElementById('editLocation').value = ev.location || '';
       document.getElementById('editEmoji').value = ev.emoji || '🎉';
       document.getElementById('editPublic').value = ev.is_public !== 0 ? '1' : '0';
-
       document.getElementById('editModal').classList.add('open');
     }
 
     function closeEditModal(e) {
-      // Close when clicking the backdrop, not the card itself
       if (e && e.target !== document.getElementById('editModal')) return;
       document.getElementById('editModal').classList.remove('open');
     }
@@ -1054,9 +797,7 @@
       e.preventDefault();
       const id = document.getElementById('editId').value;
       const btn = document.getElementById('saveEditBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<div class="spinner"></div>';
-
+      btn.disabled = true; btn.innerHTML = '<div class="spinner"></div>';
       let saved = false;
       try {
         const res = await fetch(`/api/events/${id}`, {
@@ -1071,27 +812,11 @@
             is_public: parseInt(document.getElementById('editPublic').value)
           })
         });
-
-        if (res.status === 401) {
-          document.getElementById('editModal').classList.remove('open');
-          document.getElementById('adminPage').style.display = 'none';
-          document.getElementById('loginOverlay').style.display = 'flex';
-          return;
-        }
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Server error (${res.status})`);
-        }
-
+        if (res.status === 401) { await logout(); return; }
+        if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.error || `Error ${res.status}`); }
         saved = true;
-      } catch (err) {
-        showToast(err.message || 'Failed to save changes.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = 'Save changes';
-      }
-
+      } catch (err) { showToast(err.message || 'Failed to save.'); }
+      finally { btn.disabled = false; btn.textContent = 'Save changes'; }
       if (saved) {
         document.getElementById('editModal').classList.remove('open');
         showToast('Event updated!');
@@ -1099,11 +824,6 @@
         loadRegistrations();
       }
     });
-
-    function copyLink(token) {
-      const url = `${location.origin}/event?code=${token}`;
-      navigator.clipboard.writeText(url).then(() => showToast('Link copied!'));
-    }
 
     // ── Emoji picker ──────────────────────────────────────────
     const EMOJIS = [
@@ -1115,13 +835,10 @@
       '🎃','🎄','🎇','🧨','🪅','🎭','🎬','📸',
       '🏖️','🏕️','🌍','✈️','🚀','🎠','🎡','🎪'
     ];
-
     let activePicker = null;
 
     function buildPickers() {
-      const html = EMOJIS.map(e =>
-        `<button type="button" class="ep-btn" onclick="pickEmoji(event,'${e}')">${e}</button>`
-      ).join('');
+      const html = EMOJIS.map(e => `<button type="button" class="ep-btn" onclick="pickEmoji(event,'${e}')">${e}</button>`).join('');
       document.getElementById('evEmojiPicker').innerHTML = html;
       document.getElementById('editEmojiPicker').innerHTML = html;
     }
@@ -1130,18 +847,13 @@
       const picker = document.getElementById(pickerId);
       const isHidden = picker.classList.contains('hidden');
       closeAllPickers();
-      if (isHidden) {
-        picker.classList.remove('hidden');
-        picker.dataset.target = inputId;
-        activePicker = picker;
-      }
+      if (isHidden) { picker.classList.remove('hidden'); picker.dataset.target = inputId; activePicker = picker; }
     }
 
     function pickEmoji(e, emoji) {
       const picker = e.target.closest('.emoji-picker');
       document.getElementById(picker.dataset.target).value = emoji;
-      picker.classList.add('hidden');
-      activePicker = null;
+      picker.classList.add('hidden'); activePicker = null;
     }
 
     function closeAllPickers() {
@@ -1149,11 +861,9 @@
       activePicker = null;
     }
 
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', e => {
       if (activePicker && !e.target.closest('.emoji-wrap')) closeAllPickers();
     });
-
-    buildPickers();
 
     // ── Time select ───────────────────────────────────────────
     function buildTimeOptions() {
@@ -1171,7 +881,7 @@
     document.getElementById('evTime').innerHTML = timeOpts;
     document.getElementById('editTime').innerHTML = timeOpts;
 
-    // ── Init ──────────────────────────────────────────────────
+    buildPickers();
     checkAuth();
   </script>
 </body>
