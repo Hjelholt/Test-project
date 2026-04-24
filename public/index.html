@@ -310,7 +310,7 @@
   </div>
 
   <footer>
-    <a href="/admin.html">Admin panel</a>
+    <a href="/dashboard.html">My Events</a> &nbsp;·&nbsp; <a href="/admin.html">Admin panel</a>
   </footer>
 
   <script>
@@ -408,9 +408,21 @@
     // ── Events ────────────────────────────────────────────────
     async function loadEvents() {
       try {
-        const res = await fetch('/api/events');
-        events = await res.json();
+        const code = new URLSearchParams(window.location.search).get('code');
+        if (code) {
+          const res = await fetch(`/api/events/by-token?token=${encodeURIComponent(code)}`);
+          if (!res.ok) throw new Error('not found');
+          events = [await res.json()];
+        } else {
+          const res = await fetch('/api/events');
+          events = await res.json();
+        }
         renderEvents();
+        // Pre-select the only event when arriving via private link
+        if (events.length === 1) {
+          const radio = document.getElementById(`ev-${events[0].id}`);
+          if (radio) radio.checked = true;
+        }
       } catch {
         document.getElementById('eventsContainer').innerHTML =
           `<div class="no-events">${escHtml(t[lang].errorLoad)}</div>`;
