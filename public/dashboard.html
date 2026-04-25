@@ -1012,11 +1012,13 @@
 
     buildPickers();
 
-    // Check for password reset token in URL
-    const resetToken = new URLSearchParams(window.location.search).get('reset');
+    // Check for password reset token or tab param in URL
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = params.get('reset');
     if (resetToken) {
       showReset(resetToken);
     } else {
+      if (params.get('tab') === 'register') switchTab('register');
       checkAuth();
     }
   </script>
