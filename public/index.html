@@ -22,9 +22,36 @@
       width: 100%;
       max-width: 560px;
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 16px;
     }
+
+    .btn-top-link {
+      padding: 7px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: .825rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-decoration: none;
+      background: #fff;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-top-link:hover { border-color: #4f46e5; color: #4f46e5; }
+
+    .btn-top-primary {
+      padding: 7px 14px;
+      border: 2px solid #4f46e5;
+      border-radius: 8px;
+      font-size: .825rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      background: #4f46e5;
+      transition: background .15s;
+    }
+    .btn-top-primary:hover { background: #4338ca; }
 
     .lang-toggle {
       display: flex;
@@ -263,6 +290,10 @@
         <span class="flag">🇬🇧</span> EN
       </button>
     </div>
+    <div style="display:flex;gap:8px">
+      <a href="/dashboard.html" class="btn-top-link" data-i18n="btnSignIn"></a>
+      <a href="/dashboard.html" class="btn-top-primary" data-i18n="btnCreateAccount"></a>
+    </div>
   </div>
 
   <header>
@@ -317,6 +348,8 @@
     // ── Translations ──────────────────────────────────────────
     const t = {
       da: {
+        btnSignIn:        'Log ind',
+        btnCreateAccount: 'Opret konto',
         title:            'Tilmeld deltagelse',
         subtitle:         'Vælg en begivenhed og udfyld dine oplysninger',
         chooseEvent:      'Vælg en begivenhed',
@@ -336,6 +369,8 @@
         errorSubmit:      'Tilmelding mislykkedes. Prøv igen.',
       },
       en: {
+        btnSignIn:        'Sign in',
+        btnCreateAccount: 'Create account',
         title:            'Register Attendance',
         subtitle:         'Pick an event and fill in your details',
         chooseEvent:      'Choose an event',
