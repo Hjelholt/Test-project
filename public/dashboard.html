@@ -367,6 +367,8 @@
         <button type="button" onclick="switchTab('login')" style="margin-top:14px;background:none;border:none;color:#6b7280;font-size:.85rem;cursor:pointer;width:100%">← Back to sign in</button>
       </div>
 
+      <a href="/index.html" style="display:block;text-align:center;margin-top:16px;font-size:.825rem;color:#6b7280;text-decoration:none;">← Back to main page</a>
+
       <!-- Reset password form -->
       <div id="resetSection" style="display:none">
         <p style="font-size:.875rem;color:#6b7280;margin-bottom:16px">Choose a new password for your account.</p>
@@ -700,11 +702,7 @@
 
     async function logout() {
       await fetch('/api/users/logout', { method: 'POST' });
-      document.getElementById('dashPage').style.display = 'none';
-      document.getElementById('authOverlay').style.display = 'flex';
-      document.getElementById('loginForm').reset();
-      document.getElementById('registerForm').reset();
-      switchTab('login');
+      window.location.href = '/index.html';
     }
 
     // ── Events ────────────────────────────────────────────────
