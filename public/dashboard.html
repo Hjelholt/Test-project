@@ -331,7 +331,7 @@
         </svg>
       </div>
 
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
         <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Sign in</button>
         <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">Create account</button>
       </div>
@@ -342,6 +342,7 @@
         <label>Password <input type="password" id="loginPass" autocomplete="current-password" placeholder="Password" /></label>
         <div class="auth-error" id="loginError"></div>
         <button type="submit" class="btn-auth" id="loginBtn">Sign in</button>
+        <button type="button" onclick="showForgot()" style="background:none;border:none;color:#6b7280;font-size:.825rem;cursor:pointer;margin-top:4px;width:100%">Forgot password?</button>
       </form>
 
       <!-- Register form -->
@@ -349,9 +350,33 @@
         <label>Username <input type="text" id="regUsername" autocomplete="username" placeholder="your_name" /></label>
         <label>Email <input type="email" id="regEmail" autocomplete="email" placeholder="you@example.com" /></label>
         <label>Password <input type="password" id="regPass" autocomplete="new-password" placeholder="Min. 6 characters" /></label>
+        <label>Confirm password <input type="password" id="regConfirm" autocomplete="new-password" placeholder="Repeat password" /></label>
         <div class="auth-error" id="registerError"></div>
         <button type="submit" class="btn-auth" id="registerBtn">Create account</button>
       </form>
+
+      <!-- Forgot password form -->
+      <div id="forgotSection" style="display:none">
+        <p style="font-size:.875rem;color:#6b7280;margin-bottom:16px">Enter your email and we'll send you a reset link.</p>
+        <form id="forgotForm" class="auth-form visible">
+          <label>Email <input type="email" id="forgotEmail" placeholder="you@example.com" /></label>
+          <div class="auth-error" id="forgotError"></div>
+          <div id="forgotSuccess" style="display:none;font-size:.85rem;color:#15803d;background:#dcfce7;border-radius:8px;padding:10px 14px"></div>
+          <button type="submit" class="btn-auth" id="forgotBtn">Send reset link</button>
+        </form>
+        <button type="button" onclick="switchTab('login')" style="margin-top:14px;background:none;border:none;color:#6b7280;font-size:.85rem;cursor:pointer;width:100%">← Back to sign in</button>
+      </div>
+
+      <!-- Reset password form -->
+      <div id="resetSection" style="display:none">
+        <p style="font-size:.875rem;color:#6b7280;margin-bottom:16px">Choose a new password for your account.</p>
+        <form id="resetForm" class="auth-form visible">
+          <label>New password <input type="password" id="resetPass" placeholder="Min. 6 characters" /></label>
+          <label>Confirm password <input type="password" id="resetConfirm" placeholder="Repeat password" /></label>
+          <div class="auth-error" id="resetError"></div>
+          <button type="submit" class="btn-auth" id="resetBtn">Set new password</button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -506,6 +531,29 @@
       document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
       document.getElementById('loginForm').classList.toggle('visible', tab === 'login');
       document.getElementById('registerForm').classList.toggle('visible', tab === 'register');
+      document.getElementById('forgotSection').style.display = 'none';
+      document.getElementById('resetSection').style.display = 'none';
+      document.getElementById('authTabs').style.display = 'flex';
+    }
+
+    function showForgot() {
+      document.getElementById('authTabs').style.display = 'none';
+      document.getElementById('loginForm').classList.remove('visible');
+      document.getElementById('registerForm').classList.remove('visible');
+      document.getElementById('forgotSection').style.display = 'block';
+      document.getElementById('resetSection').style.display = 'none';
+      document.getElementById('forgotSuccess').style.display = 'none';
+      document.getElementById('forgotError').style.display = 'none';
+      document.getElementById('forgotEmail').value = '';
+    }
+
+    function showReset(token) {
+      document.getElementById('authTabs').style.display = 'none';
+      document.getElementById('loginForm').classList.remove('visible');
+      document.getElementById('registerForm').classList.remove('visible');
+      document.getElementById('forgotSection').style.display = 'none';
+      document.getElementById('resetSection').style.display = 'block';
+      document.getElementById('resetSection').dataset.token = token;
     }
 
     // ── Auth ──────────────────────────────────────────────────
@@ -549,6 +597,15 @@
       const btn = document.getElementById('registerBtn');
       const errEl = document.getElementById('registerError');
       errEl.style.display = 'none';
+
+      const pass = document.getElementById('regPass').value;
+      const confirm = document.getElementById('regConfirm').value;
+      if (pass !== confirm) {
+        errEl.textContent = 'Passwords do not match.';
+        errEl.style.display = 'block';
+        return;
+      }
+
       btn.disabled = true;
       btn.innerHTML = '<div class="spinner"></div>';
       try {
@@ -558,7 +615,7 @@
           body: JSON.stringify({
             username: document.getElementById('regUsername').value,
             email: document.getElementById('regEmail').value,
-            password: document.getElementById('regPass').value
+            password: pass
           })
         });
         const data = await res.json();
@@ -567,6 +624,78 @@
       } catch { errEl.textContent = 'Could not connect.'; errEl.style.display = 'block'; }
       btn.disabled = false;
       btn.textContent = 'Create account';
+    });
+
+    document.getElementById('forgotForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('forgotBtn');
+      const errEl = document.getElementById('forgotError');
+      const successEl = document.getElementById('forgotSuccess');
+      errEl.style.display = 'none';
+      successEl.style.display = 'none';
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div>';
+      try {
+        const res = await fetch('/api/users/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: document.getElementById('forgotEmail').value })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.resetUrl) {
+            // No email configured — show the link so it can be shared manually
+            successEl.innerHTML = `Reset link (share with the user):<br><a href="${escHtml(data.resetUrl)}" style="color:#15803d;word-break:break-all">${escHtml(data.resetUrl)}</a>`;
+          } else {
+            successEl.textContent = 'If an account with that email exists, a reset link has been sent.';
+          }
+          successEl.style.display = 'block';
+          btn.style.display = 'none';
+        } else {
+          errEl.textContent = data.error || 'Something went wrong.';
+          errEl.style.display = 'block';
+        }
+      } catch { errEl.textContent = 'Could not connect.'; errEl.style.display = 'block'; }
+      btn.disabled = false;
+      if (btn.style.display !== 'none') btn.textContent = 'Send reset link';
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('resetBtn');
+      const errEl = document.getElementById('resetError');
+      errEl.style.display = 'none';
+
+      const pass = document.getElementById('resetPass').value;
+      const confirm = document.getElementById('resetConfirm').value;
+      if (pass !== confirm) {
+        errEl.textContent = 'Passwords do not match.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div>';
+      try {
+        const token = document.getElementById('resetSection').dataset.token;
+        const res = await fetch('/api/users/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password: pass })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast('Password updated! Please sign in.');
+          // Remove the reset token from URL and show login
+          history.replaceState(null, '', '/dashboard.html');
+          switchTab('login');
+        } else {
+          errEl.textContent = data.error || 'Reset failed.';
+          errEl.style.display = 'block';
+        }
+      } catch { errEl.textContent = 'Could not connect.'; errEl.style.display = 'block'; }
+      btn.disabled = false;
+      btn.textContent = 'Set new password';
     });
 
     async function logout() {
@@ -882,7 +1011,14 @@
     document.getElementById('editTime').innerHTML = timeOpts;
 
     buildPickers();
-    checkAuth();
+
+    // Check for password reset token in URL
+    const resetToken = new URLSearchParams(window.location.search).get('reset');
+    if (resetToken) {
+      showReset(resetToken);
+    } else {
+      checkAuth();
+    }
   </script>
 </body>
 </html>

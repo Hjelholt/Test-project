@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,6 +45,13 @@ db.exec(`
     created_at TEXT NOT NULL,
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 // Migrations — add new columns to events if they don't exist yet
@@ -57,6 +65,16 @@ try { db.exec(`ALTER TABLE events ADD COLUMN owner_id TEXT REFERENCES users(id)`
   const setToken = db.prepare('UPDATE events SET access_token = ? WHERE id = ?');
   for (const ev of missing) setToken.run(crypto.randomUUID(), ev.id);
 }
+
+// ── Optional email transport (set SMTP_HOST/USER/PASS env vars to enable) ───
+const transporter = (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    })
+  : null;
 
 // ── Password utilities ────────────────────────────────────────────
 function hashPassword(password) {
@@ -124,6 +142,10 @@ const stmts = {
   getRegsByEvent:    db.prepare(`SELECT r.*, e.name AS event_name, e.emoji FROM registrations r LEFT JOIN events e ON r.event_id = e.id WHERE r.event_id = ? ORDER BY r.created_at DESC`),
   getRegsByOwner:    db.prepare(`SELECT r.*, e.name AS event_name, e.emoji FROM registrations r LEFT JOIN events e ON r.event_id = e.id WHERE e.owner_id = ? ORDER BY r.created_at DESC`),
   getRegWithOwner:   db.prepare(`SELECT r.*, e.owner_id FROM registrations r LEFT JOIN events e ON r.event_id = e.id WHERE r.id = ?`),
+  insertReset:       db.prepare('INSERT INTO password_resets (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)'),
+  getResetByToken:   db.prepare('SELECT * FROM password_resets WHERE token = ? AND used = 0'),
+  markResetUsed:     db.prepare('UPDATE password_resets SET used = 1 WHERE id = ?'),
+  updatePassword:    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?'),
   insertReg:         db.prepare('INSERT INTO registrations (id, event_id, name, phone, created_at) VALUES (?, ?, ?, ?, ?)'),
   deleteReg:         db.prepare('DELETE FROM registrations WHERE id = ?'),
   deleteRegsByEvent: db.prepare('DELETE FROM registrations WHERE event_id = ?'),
@@ -168,6 +190,48 @@ app.get('/api/users/me', requireUser, (req, res) => {
   const user = stmts.getUserById.get(req.session.userId);
   if (!user) return res.status(404).json({ error: 'User not found.' });
   res.json(user);
+});
+
+app.post('/api/users/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email?.trim()) return res.status(400).json({ error: 'Email is required.' });
+  const user = stmts.getUserByEmail.get(email.trim().toLowerCase());
+  if (!user) return res.json({ success: true }); // don't reveal whether email exists
+
+  const token = crypto.randomBytes(32).toString('hex');
+  stmts.insertReset.run(crypto.randomUUID(), user.id, token, new Date(Date.now() + 3600_000).toISOString());
+
+  const base = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+  const resetUrl = `${base}/dashboard.html?reset=${token}`;
+
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: user.email,
+        subject: 'Password reset',
+        text: `Reset your password here (link valid 1 hour):\n\n${resetUrl}`,
+        html: `<p>Click the link to reset your password (valid 1 hour):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`
+      });
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Email send failed:', err.message);
+    }
+  }
+  // No email configured: return the link so the user can share it manually
+  res.json({ success: true, resetUrl });
+});
+
+app.post('/api/users/reset-password', (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token and password are required.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  const reset = stmts.getResetByToken.get(token);
+  if (!reset || new Date(reset.expires_at) < new Date())
+    return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+  stmts.updatePassword.run(hashPassword(password), reset.user_id);
+  stmts.markResetUsed.run(reset.id);
+  res.json({ success: true });
 });
 
 app.get('/api/users/status', (req, res) => {
