@@ -392,9 +392,4 @@ app.get('/dashboard',  (req, res) => res.sendFile(path.join(__dirname, 'public',
 app.get('/admin',      (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 // ── Start ─────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`Data directory: ${dataDir}`);
-  console.log(`Database file: ${path.join(dataDir, 'app.db')}`);
-  console.log(`DATA_DIR env var: ${process.env.DATA_DIR || '(not set, using default)'}`);
-});
+app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
